@@ -12,6 +12,8 @@ extern std::nullptr_t enabler;
 struct compo_t {
 };
 
+using alignment_t = size_t;
+
 template < typename T >
 struct has_trv {
 	template < typename U > static auto check(U u) -> decltype(u.trv(), std::true_type{}) { }
@@ -20,50 +22,50 @@ public:
 	static bool const value = decltype(check(std::declval<T>()))::value;
 };
 
-template < typename ...Ts >
+template < alignment_t Align, typename ...Ts >
 struct sigma_size {
 	static const size_t value = 0;
 };
 
 /* trv を持つ */
-template < typename T > constexpr auto sizeof_() -> decltype(T::trv()) { return T::trv(); }
+template < typename T, alignment_t Align = 1 > constexpr auto sizeof_() -> decltype(T::trv()) { return T::trv(); }
 
 /* trv を持たない */
-template < typename T >
+template < typename T, alignment_t Align = 1 >
 constexpr auto sizeof_() -> std::enable_if_t< !has_trv<T>::value, size_t >
 {
 	return sizeof(T);
 }
 
-template < typename CAR, typename ...CDR >
-struct sigma_size< CAR, CDR... > {
-	static const size_t value = sizeof_< CAR >() + sigma_size< CDR... >::value;
+template < alignment_t Align, typename CAR, typename ...CDR >
+struct sigma_size< Align, CAR, CDR... > {
+	static const size_t value = sizeof_< CAR >() + sigma_size< Align, CDR... >::value;
 };
 
-template < typename ...Ts >
+template < alignment_t Align, typename ...Ts >
 constexpr size_t sigma_type_list(type_list< Ts ... >&&)
 {
-	return sigma_size< Ts... >::value;
+	return sigma_size< Align, Ts... >::value;
 }
 
 /* offset 計算のサブ関数:
    型 T が offset<Rest...>() を持っていれば Rest... のパターンに従って探索し, なければ終端する. */
-template < typename T, size_t...Pos >
-constexpr auto offset_() -> decltype(T::template offset< Pos... >::value)
+template < alignment_t Align, typename T, size_t...Pos >
+constexpr auto offset_() -> decltype(T::template offset< Align, Pos... >::value)
 {
-	return T::template offset< Pos... >::value;
+	return T::template offset< Align, Pos... >::value;
 }
 
 template < typename T, size_t... Pos >
 struct has_offset {
-	template < typename U > static auto check(U u) -> decltype(U::template offset< Pos ... >::value, std::true_type{}) { }
+	template < typename U > static auto check(U u) -> decltype(U::template offset< 0, Pos ... >::value, std::true_type{}) { }
 	static std::false_type check(...);
 public:
 	static bool const value = decltype(check(std::declval<T>()))::value;
 };
 
 /* offset を持たないので Pos... の探索は終了 */
-template < typename T, size_t...Pos >
+template < alignment_t Align, typename T, size_t...Pos >
 constexpr auto offset_() -> std::enable_if_t< !has_offset<T, Pos...>::value, size_t >
 {
 	return std::is_empty< T >::value ? T() : sizeof(T);
@@ -73,36 +75,28 @@ constexpr auto offset_() -> std::enable_if_t< !has_offset<T, Pos...>::value, siz
  */
 template < typename ...S >
 struct agg_t : public compo_t {
+	//template < alignment_t Align = 1 >
 	constexpr static size_t trv()
 	{
-		return sigma_size< S... >::value;
+		return sigma_size< 1, S... >::value;
 	}
 
-	template < size_t Pos, size_t...Rest >
-	constexpr static size_t trv(size_t&& acc)
-	{
-		using Sub = typename to_types< Pos, S... >::types;
-		size_t r = acc + sigma_type_list(Sub{});
-		//return at_type< Pos, S... >::type::template trv< Rest...> (std::move(r));
-		return r + at_type< Pos, S... >::type::template offset< Rest ... >::value;
-	}
+	template < alignment_t Align, size_t... Rest > struct offset { static const size_t value = 0; };
+	template < alignment_t Align, size_t Cur >
+	struct offset< Align, Cur > { static const size_t value = sigma_type_list< Align >(typename to_types< Cur, S... >::types{}); };
 
-	template < size_t... Rest > struct offset { static const size_t value = 0; };
-	template < size_t Cur >
-	struct offset< Cur > { static const size_t value = sigma_type_list(typename to_types< Cur, S... >::types{}); };
-
-	template < size_t Cur, size_t ... Rest >
-	struct offset< Cur, Rest...>  {
-		static const size_t value = sigma_type_list(typename to_types< Cur, S... >::types{}) +
-			offset_< typename at_type< Cur, S... >::type, Rest... >();
+	template < alignment_t Align, size_t Cur, size_t ... Rest >
+	struct offset< Align, Cur, Rest...>  {
+		static const size_t value = sigma_type_list< Align >(typename to_types< Cur, S... >::types{}) +
+			offset_< Align, typename at_type< Cur, S... >::type, Rest... >();
 	};
 
-	template < size_t... Rest > struct get { using type = void; };
-	template < size_t Pos >	struct get< Pos > {	using type = typename at_type< Pos, S... >::type; };
-	template < size_t Pos, size_t ... Rest >
-	struct get< Pos, Rest...>  {
+	template < alignment_t Align, size_t... Rest > struct get { using type = void; };
+	template < alignment_t Align, size_t Pos >	struct get< Align, Pos > { using type = typename at_type< Pos, S... >::type; };
+	template < alignment_t Align, size_t Pos, size_t ... Rest >
+	struct get< Align, Pos, Rest...>  {
 		using T = typename at_type< Pos, S... >::type;
-		using type = typename T::template get< Rest ... >::type;
+		using type = typename T::template get< Align, Rest ... >::type;
 	};
 
 };
@@ -125,18 +119,18 @@ struct sel_t : public compo_t {
 		return constexpr_max(sizeof_<S>()...);
 	}
 
-	template < size_t... Rest > struct offset { static const size_t value = 0; };
-	template < size_t Pos >	struct offset< Pos > {	static const size_t value = 0; };
-	template < size_t Pos, size_t ... Rest >
-	struct offset< Pos, Rest...>  {
-		static const size_t value = offset_< typename at_type< Pos, S... >::type, Rest... >();
+	template < alignment_t Align, size_t... Rest > struct offset { static const size_t value = 0; };
+	template < alignment_t Align, size_t Pos >	struct offset< Align, Pos > { static const size_t value = 0; };
+	template < alignment_t Align, size_t Pos, size_t ... Rest >
+	struct offset< Align, Pos, Rest...>  {
+		static const size_t value = offset_< Align, typename at_type< Pos, S... >::type, Rest... >();
 	};
 
-	template < size_t... Rest > struct get;
-	template < size_t Pos >	struct get< Pos > {	using type = typename at_type< Pos, S... >::type; };
-	template < size_t Pos, size_t ... Rest >
-	struct get< Pos, Rest...>  {
-		using type = typename at_type< Pos, S... >::type::template get< Rest ... >::type;
+	template < alignment_t Align, size_t... Rest > struct get;
+	template < alignment_t Align, size_t Pos >	struct get< Align, Pos > { using type = typename at_type< Pos, S... >::type; };
+	template < alignment_t Align, size_t Pos, size_t ... Rest >
+	struct get< Align, Pos, Rest...>  {
+		using type = typename at_type< Pos, S... >::type::template get< Align, Rest ... >::type;
 	};
 	
 #if 0
@@ -161,14 +155,15 @@ struct sel_t_t {
 	}
 };
 
-template < typename S, typename Enabled = void >
+template < typename S, alignment_t Align, typename Enabled = void >
 struct type_t {
 };
 
-template < typename S >
-struct type_t < S, std::enable_if_t< std::is_base_of< compo_t, S >::value > > {
+template < typename S, alignment_t Align>
+struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value > > {
 	using sub = S;
-
+	static const size_t align = Align;
+	
 	constexpr static size_t trv()
 	{
 		return sizeof_<sub>();
@@ -178,11 +173,11 @@ struct type_t < S, std::enable_if_t< std::is_base_of< compo_t, S >::value > > {
 	constexpr static size_t offset()
 	{
 		//std::integer_sequence< size_t, (rest)... > s;
-		return sub::template offset< Rest... >::value;
+		return sub::template offset< Align, Rest... >::value;
 	}
 
 	template < size_t Cur, size_t ...Rest >
-	using type = typename sub::template get< Rest... >::type;
+	using type = typename sub::template get< Align, Rest... >::type;
 };
 
 /* type_t<...>::template type<...> と同じだが, template と書きたくないので */
