@@ -20,9 +20,9 @@ int main()
 	/* selection a select type and x  */
 	printf("%zu\n", type_t< sel_t< char, sel_t< int, char > >, 1 >::trv());
 	/* aggregation a selector type and x */
-	printf("%zu\n", sigma_size< 1, type_t< int, 1 > >::value);
+	printf("%zu\n", sigma_size< 1, 0, type_t< int, 1 > >::value);
 	printf("%zu\n", sel_t< int >::trv());
-	printf("%zu\n", sigma_size< 1, sel_t_t< size_t, 1, 2, 3 > >::value);
+	printf("%zu\n", sigma_size< 1, 0, sel_t_t< size_t, 1, 2, 3 > >::value);
 	printf("%zu\n", type_t< agg_t< char, sel_t< int, char > , int >, 1 >::trv());
 
 	using Simple1 = type_t< agg_t< char, char, int, double >, 1 >;
@@ -106,5 +106,31 @@ int main()
 	printf("offset: %zu \n", get< T, 0, 2, 1, 1>::offset);
 	//printf("%zu\n", T::offset<0, 2, 1, 1>());
 
+	using Aligned0_1 = type_t< agg_t< char, char, int >, 0 >;
+	/* size align Ç≈ÇÕÇ»Ç¢ÇÃÇ≈ïÅí Ç… sizeof Ç∆ìØÇ∂ */
+	printf("size(align:0): %zu (8) \n", Aligned0_1::trv());
+	printf("size(align:0): %zu (1) \n", get< Aligned0_1, 0, 0>::size);
+	printf("size(align:0): %zu (1)\n", get< Aligned0_1, 0, 1>::size);
+	printf("size(align:0): %zu (4)\n", get< Aligned0_1, 0, 2>::size);
+
+	printf("offset(align:0): %zu (0)\n", get< Aligned0_1, 0, 0>::offset);
+	printf("offset(align:0): %zu (1)\n", get< Aligned0_1, 0, 1>::offset);
+	printf("offset(align:0): %zu (4)\n", get< Aligned0_1, 0, 2>::offset);
+
+	using Aligned0_2 = type_t< agg_t< char, char, char, char, int >, 0 >;
+	printf("offset(align:0): %zu (0)\n", get< Aligned0_2, 0, 0>::offset);
+	printf("offset(align:0): %zu (1)\n", get< Aligned0_2, 0, 1>::offset);
+	printf("offset(align:0): %zu (2)\n", get< Aligned0_2, 0, 2>::offset);
+	printf("offset(align:0): %zu (3)\n", get< Aligned0_2, 0, 3>::offset);
+	printf("offset(align:0): %zu (4)\n", get< Aligned0_2, 0, 4>::offset);
+
+	using Aligned0_3 = type_t< agg_t< char, char, double, char, char, int >, 0 >;
+	printf("size(align:0): %zu (24)\n", get< Aligned0_3, 0 >::size);
+	printf("offset(align:0): %zu (0)\n", get< Aligned0_3, 0, 0>::offset);
+	printf("offset(align:0): %zu (1)\n", get< Aligned0_3, 0, 1>::offset);
+	printf("offset(align:0): %zu (8)\n", get< Aligned0_3, 0, 2>::offset);
+	printf("offset(align:0): %zu (16)\n", get< Aligned0_3, 0, 3>::offset);
+	printf("offset(align:0): %zu (17)\n", get< Aligned0_3, 0, 4>::offset);
+	printf("offset(align:0): %zu (20)\n", get< Aligned0_3, 0, 5>::offset);
 	return 0;
 }
