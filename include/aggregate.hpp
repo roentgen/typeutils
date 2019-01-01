@@ -9,6 +9,9 @@ namespace typu {
 
 extern std::nullptr_t enabler;
 
+struct compo_t {
+};
+
 template < typename T >
 struct has_trv {
 	template < typename U > static auto check(U u) -> decltype(u.trv(), std::true_type{}) { }
@@ -69,7 +72,7 @@ constexpr auto offset_() -> std::enable_if_t< !has_offset<T, Pos...>::value, siz
 /* aggregation
  */
 template < typename ...S >
-struct agg_t {
+struct agg_t : public compo_t {
 	constexpr static size_t trv()
 	{
 		return sigma_size< S... >::value;
@@ -93,6 +96,15 @@ struct agg_t {
 		static const size_t value = sigma_type_list(typename to_types< Cur, S... >::types{}) +
 			offset_< typename at_type< Cur, S... >::type, Rest... >();
 	};
+
+	template < size_t... Rest > struct get { using type = void; };
+	template < size_t Pos >	struct get< Pos > {	using type = typename at_type< Pos, S... >::type; };
+	template < size_t Pos, size_t ... Rest >
+	struct get< Pos, Rest...>  {
+		using T = typename at_type< Pos, S... >::type;
+		using type = typename T::template get< Rest ... >::type;
+	};
+
 };
 
 /* C++14 Ç≈ std::max ÇÕ constexpr î≈Ç™Ç≈Ç´ÇΩÇÕÇ∏ÇæÇ™, clang-3.5+libc++ Ç≈Ç»Ç∫Ç©ÇæÇﬂ */
@@ -107,7 +119,7 @@ constexpr CAR constexpr_max(CAR&& car, CDR&&... cdr){
 
 /* selector */
 template < typename ...S >
-struct sel_t {
+struct sel_t : public compo_t {
 	constexpr static size_t trv()
 	{
 		return constexpr_max(sizeof_<S>()...);
@@ -120,6 +132,13 @@ struct sel_t {
 		static const size_t value = offset_< typename at_type< Pos, S... >::type, Rest... >();
 	};
 
+	template < size_t... Rest > struct get;
+	template < size_t Pos >	struct get< Pos > {	using type = typename at_type< Pos, S... >::type; };
+	template < size_t Pos, size_t ... Rest >
+	struct get< Pos, Rest...>  {
+		using type = typename at_type< Pos, S... >::type::template get< Rest ... >::type;
+	};
+	
 #if 0
 	template < size_t Pos, size_t...Rest >
 	constexpr static size_t trv(size_t&& acc)
@@ -142,8 +161,12 @@ struct sel_t_t {
 	}
 };
 
-template < typename S >
+template < typename S, typename Enabled = void >
 struct type_t {
+};
+
+template < typename S >
+struct type_t < S, std::enable_if_t< std::is_base_of< compo_t, S >::value > > {
 	using sub = S;
 
 	constexpr static size_t trv()
@@ -157,6 +180,19 @@ struct type_t {
 		//std::integer_sequence< size_t, (rest)... > s;
 		return sub::template offset< Rest... >::value;
 	}
+
+	template < size_t Cur, size_t ...Rest >
+	using type = typename sub::template get< Rest... >::type;
 };
+
+/* type_t<...>::template type<...> Ç∆ìØÇ∂ÇæÇ™, template Ç∆èëÇ´ÇΩÇ≠Ç»Ç¢ÇÃÇ≈ */
+template < typename T, size_t... Pos >
+struct get {
+	using type = typename T::template type< Pos... >;
+	static const size_t size = sizeof_<type>();
+	static const size_t offset = T::template offset<Pos...>();
+};
+
+
 }
 #endif

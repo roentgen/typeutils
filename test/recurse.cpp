@@ -10,6 +10,8 @@ size_t foo(C c, P... p)
 int main()
 {
 	using namespace typu;
+
+	printf("%s\n", typeid(agg_t< int, int >::get< 0 >::type).name());
 	
 	printf("%zu\n", type_t< agg_t< int > >::trv());
 	printf("%zu\n", type_t< agg_t< int, int > >::trv());
@@ -95,7 +97,14 @@ int main()
 	printf("%zu (5)\n", T::offset<0, 2, 0>()); /* sel<agg<int, int>> Ç≈ìØè„ */
 	printf("%zu(21)\n", T::offset<0, 3>());    /* sel<agg<int,int>>,agg<double,double>> ÇÃéüÇ»ÇÃÇ≈ 21 */
 #endif
+
+	printf("%s \n", typeid(get< T, 0, 2, 1>::type).name());
+	printf("size: %zu \n", get< T, 0, 2, 1>::size);
+	printf("offset: %zu \n", get< T, 0, 2, 1>::offset);
+	printf("%s \n", typeid(get< T, 0, 2, 1, 1>::type).name());
+	printf("size: %zu \n", get< T, 0, 2, 1, 1>::size);
+	printf("offset: %zu \n", get< T, 0, 2, 1, 1>::offset);
 	//printf("%zu\n", T::offset<0, 2, 1, 1>());
-	
+
 	return 0;
 }
