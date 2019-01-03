@@ -27,7 +27,7 @@ constexpr size_t align(size_t o)
 {
 	size_t a = Align; 
 	if (Align == 0) /* natural align */
-		a = sizeof(T);
+		a = alignof(T);
 	size_t m = (a-1);
 	return (o & m) ? ((o + (a-1)) & ~m) : o;
 }
@@ -85,7 +85,7 @@ public:
 template < alignment_t Align, typename T, size_t...Pos >
 constexpr auto offset_() -> std::enable_if_t< !has_offset<T, Pos...>::value, size_t >
 {
-	return std::is_empty< T >::value ? T() : sizeof(T);
+	return std::is_empty< T >::value ? 0 : sizeof(T);
 }
 	
 /* aggregation
