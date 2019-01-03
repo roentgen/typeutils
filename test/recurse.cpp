@@ -10,7 +10,7 @@ size_t foo(C c, P... p)
 int main()
 {
 	using namespace typu;
-
+	
 	printf("%s\n", typeid(agg_t< int, int >::get< 0 >::type).name());
 	
 	printf("%zu\n", type_t< agg_t< int >, 1 >::trv());
