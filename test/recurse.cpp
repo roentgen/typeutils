@@ -7,6 +7,17 @@ size_t foo(C c, P... p)
 	return c;
 }
 
+struct FF {
+	double d;
+	float f;
+};
+
+struct F {
+	char b;
+	int i;
+	FF d;
+};
+
 int main()
 {
 	using namespace typu;
@@ -39,14 +50,15 @@ int main()
 	printf("bool: %zu (0)\n", Sel1::offset<0, 2>());
 	printf("double: %zu (0)\n", Sel1::offset<0, 3>());
 
-	using Agg1 = type_t< agg_t< int, float, agg_t< double, float > >, 1 >;
-	printf("sizeof Agg1: %zu (20)\n", Agg1::trv());
+	using Agg1 = type_t< agg_t< int, float, agg_t< double, float >, char >, 1 >;
+	printf("sizeof Agg1: %zu (21)\n", Agg1::trv());
 	printf("agg0:       %zu (0)\n", Agg1::offset<0>());
 	printf("agg0:int:   %zu (0)\n", Agg1::offset<0, 0>());
 	printf("agg0:float: %zu (4)\n", Agg1::offset<0, 1>());
 	printf("agg1:       %zu (8)\n", Agg1::offset<0, 2>());
 	printf("agg1:double %zu (8)\n", Agg1::offset<0, 2, 0>());
 	printf("agg1:float  %zu (16)\n", Agg1::offset<0, 2, 1>());
+	printf("agg0:char   %zu (20)\n", Agg1::offset<0, 3>());
 
 	using Sel2 = type_t< sel_t< int, float, sel_t< double, float > >, 1 >;
 	printf("sizeof Sel2: %zu (8)\n", Sel2::trv());
@@ -132,5 +144,23 @@ int main()
 	printf("offset(align:0): %zu (16)\n", get< Aligned0_3, 0, 3>::offset);
 	printf("offset(align:0): %zu (17)\n", get< Aligned0_3, 0, 4>::offset);
 	printf("offset(align:0): %zu (20)\n", get< Aligned0_3, 0, 5>::offset);
+
+	// alighment override
+	using Aligned_1_0 = type_t< agg_t< char, int, type_t< agg_t<double>, 0>, char, char, char >, 1>;
+	printf("size(align:-): %zu (24)\n", get< Aligned_1_0, 0 >::size);
+	printf("offset<0,0>(align:1): %zu (0)\n", get< Aligned_1_0, 0, 0>::offset);
+	printf("offset<0,1>(align:1): %zu (1)\n", get< Aligned_1_0, 0, 1>::offset);
+	printf("offset<0,2>(align:0): %zu (8)\n", get< Aligned_1_0, 0, 2>::offset);
+	printf("size  (align:0): %zu (8)\n", get< Aligned_1_0, 0, 2>::size);
+	printf("offset(align:0): %zu (8)\n", get< Aligned_1_0, 0, 2, 0, 0>::offset);
+	printf("offset<0,3>(align:1): %zu (17)\n", get< Aligned_1_0, 0, 3>::offset);
+	printf("offset<0,4>(align:1): %zu (18)\n", get< Aligned_1_0, 0, 4>::offset);
+	printf("offset<0,5>(align:1): %zu (19)\n", get< Aligned_1_0, 0, 5>::offset);
+
+	printf("size<0,0>(align:1): %zu (0)\n", get< Aligned_1_0, 0, 0>::size);
+	printf("size<0,1>(align:1): %zu (1)\n", get< Aligned_1_0, 0, 1>::size);
+	printf("size<0,2>(align:0): %zu (8)\n", get< Aligned_1_0, 0, 2>::size);
+
+	printf("alignof:%zu\n", alignof(F));
 	return 0;
 }

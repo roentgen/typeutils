@@ -14,11 +14,29 @@ struct compo_t {
 
 using alignment_t = size_t;
 
+template < typename T>
+struct has_align {
+	template < typename U > static auto check(U u) -> decltype(U::align, std::true_type{});
+	static std::false_type check(...);
+	static bool const value = decltype(check(std::declval<T>()))::value;
+};
+
+template < alignment_t A, typename T>
+constexpr auto decision_align() -> std::enable_if_t< has_align<T>::value, alignment_t > { return T::align; }
+
+template < alignment_t A, typename T>
+constexpr auto decision_align() -> std::enable_if_t< !has_align<T>::value, alignment_t > { return A; }
+
+template < alignment_t A, typename T>
+constexpr auto decision_align_value() -> std::enable_if_t< has_align<T>::value, alignment_t > { return T::align == 0 ? alignof(T) : T::align; }
+
+template < alignment_t A, typename T>
+constexpr auto decision_align_value() -> std::enable_if_t< !has_align<T>::value, alignment_t > { return A == 0 ? alignof(T) : A; }
+
 template < typename T >
 struct has_trv {
 	template < typename U > static auto check(U u) -> decltype(u.trv(), std::true_type{}) { }
 	static std::false_type check(...);
-public:
 	static bool const value = decltype(check(std::declval<T>()))::value;
 };
 
@@ -35,28 +53,67 @@ constexpr size_t align(size_t o)
 /* trv を持つ.
    trv はテンプレート引数に align を持つこと.
    (テンプレート引数はデフォルトの alignment を持つべき) */
-template < typename T, alignment_t Align = 1 > constexpr auto sizeof_() -> decltype(T::trv()) { return T::template trv< Align >(); }
+template < typename T, alignment_t Align = 1 > constexpr auto sizeof_(size_t placement=0) -> decltype(T::trv()) { return T::template trv< Align >(placement); }
 
 /* trv を持たない */
 template < typename T, alignment_t Align = 1 >
-constexpr auto sizeof_() -> std::enable_if_t< !has_trv<T>::value, size_t >
+constexpr auto sizeof_(size_t placement=0) -> std::enable_if_t< !has_trv<T>::value, size_t >
 {
 	return align<Align, T>(sizeof(T));
 }
+
+/* C++14 で std::max は constexpr 版ができたはずだが, clang-3.5+libc++ でなぜかだめ */
+template < typename CAR, typename... CDR >
+constexpr CAR constexpr_max(CAR&& car, CDR&&... cdr){
+	CAR r = car;
+	using s = std::initializer_list<int>;
+	(void)s{ (void(r = r < cdr ? cdr : r),0)... };
+	return r;
+}
+
+#if 1
+template < typename Prev, alignment_t Align, size_t Acc, typename ...Ts >
+struct sigma_size_impl {
+	static const size_t value = Acc;
+};
+	
+template < typename Prev, alignment_t Align, size_t Acc, typename CAR>
+struct sigma_size_impl< Prev, Align, Acc, CAR > {
+	static const alignment_t a0_ = decision_align< Align, CAR >();
+	static const alignment_t a1_ = constexpr_max(decision_align_value< Align, Prev >(), decision_align_value< Align, CAR >());
+	static const size_t value = decision_align< Align, Prev >() != decision_align< Align, CAR >() ?
+		align< a1_, CAR >(Acc + sizeof_< CAR, a1_ >(Acc)) :
+		align< a0_, CAR >(Acc + sizeof_< CAR, a0_ >(Acc));
+};
+
+template < typename Prev, alignment_t Align, size_t Acc, typename CAR, typename ...CDR>
+struct sigma_size_impl< Prev, Align, Acc, CAR, CDR... > {
+	static const alignment_t a0_ = decision_align< Align, CAR >();
+	static const alignment_t a1_ = constexpr_max(decision_align_value< Align, Prev >(), decision_align_value< Align, CAR >());
+	static const size_t value = decision_align< Align, Prev >() != decision_align< Align, CAR >() ?
+		sigma_size_impl< CAR, a1_, align< a1_, CAR >(Acc + sizeof_< CAR, a1_ >(Acc)), CDR... >::value :
+		sigma_size_impl< CAR, a0_, align< a0_, CAR >(Acc + sizeof_< CAR, a0_ >(Acc)), CDR... >::value;
+};
+#endif
 	
 template < alignment_t Align, size_t Acc, typename ...Ts >
 struct sigma_size {
 	static const size_t value = Acc;
 };
 
+	/*
 template < alignment_t Align, size_t Acc, typename CAR>
 struct sigma_size< Align, Acc, CAR > {
-	static const size_t value = align< Align, CAR >(Acc + sizeof_< CAR >());
+	static const alignment_t a_ = decision_align< Align, CAR >();
+	static const size_t value = align< a_, CAR >(Acc + sizeof_< CAR, a_ >());
 };
-
+	*/
+	
 template < alignment_t Align, size_t Acc, typename CAR, typename ...CDR>
 struct sigma_size< Align, Acc, CAR, CDR... > {
-	static const size_t value = sigma_size< Align, align< Align, CAR >(Acc + sizeof_< CAR >()), CDR... >::value;
+	static const alignment_t a_ = decision_align< Align, CAR >();
+	static const size_t value = sigma_size_impl< CAR, a_, align< a_, CAR >(Acc + sizeof_< CAR, a_ >()), CDR... >::value;
+	//static const size_t value = sigma_size< a_, align< a_, CAR >(Acc + sizeof_< CAR, a_ >()), CDR... >::value;
 };
 
 template < alignment_t Align, typename ...Ts >
@@ -93,7 +150,7 @@ constexpr auto offset_() -> std::enable_if_t< !has_offset<T, Pos...>::value, siz
 template < typename ...S >
 struct agg_t : public compo_t {
 	template < alignment_t Align = 1 >
-	constexpr static size_t trv()
+	constexpr static size_t trv(size_t placement=0)
 	{
 		return sigma_size< Align, 0, S... >::value;
 	}
@@ -103,12 +160,18 @@ struct agg_t : public compo_t {
 	/* offset は Idx-1 までのサイズの総和だが, address alignment 制約の保証のために Idx の type を知る必要がある.
 	   計算の途中も制約を満たす必要がある. */
 	template < alignment_t Align, size_t Cur >
-	struct offset< Align, Cur > { static const size_t value = align< Align, typename at_type< Cur, S...>::type >(sigma_type_list< Align >(typename to_types< Cur, S... >::types{})); };
+	struct offset< Align, Cur > {
+		using T_ = typename at_type< Cur, S...>::type;
+		static const alignment_t a_ = decision_align< Align, T_>();
+		static const size_t value = align< a_, T_ >(sigma_type_list< a_ >(typename to_types< Cur, S... >::types{}));
+	};
 
 	template < alignment_t Align, size_t Cur, size_t ... Rest >
 	struct offset< Align, Cur, Rest...>  {
-		static const size_t value = sigma_type_list< Align >(typename to_types< Cur, S... >::types{}) +
-			offset_< Align, typename at_type< Cur, S... >::type, Rest... >();
+		using T_ = typename at_type< Cur, S...>::type;
+		static const alignment_t a_ = decision_align< Align, T_>();
+		static const size_t value = sigma_type_list< a_ >(typename to_types< Cur, S... >::types{}) +
+			offset_< a_, T_, Rest... >();
 	};
 
 	template < alignment_t Align, size_t... Rest > struct get { using type = void; };
@@ -120,20 +183,11 @@ struct agg_t : public compo_t {
 
 };
 
-/* C++14 で std::max は constexpr 版ができたはずだが, clang-3.5+libc++ でなぜかだめ */
-template < typename CAR, typename... CDR >
-constexpr CAR constexpr_max(CAR&& car, CDR&&... cdr){
-	CAR r = car;
-	using s = std::initializer_list<int>;
-	(void)s{ (void(r = r < cdr ? cdr : r),0)... };
-	return r;
-}
-
 /* selector */
 template < typename ...S >
 struct sel_t : public compo_t {
 	template < alignment_t Align = 1 >
-	constexpr static size_t trv()
+	constexpr static size_t trv(size_t placement=0)
 	{
 		return constexpr_max(sizeof_<S, Align>()...);
 	}
@@ -157,7 +211,7 @@ struct sel_t : public compo_t {
 template < typename T, T ...S >
 struct sel_t_t {
 	template < alignment_t A=1 >
-	constexpr static size_t trv()
+	constexpr static size_t trv(size_t placement=0)
 	{
 		return constexpr_max(S...);
 	}
@@ -181,11 +235,30 @@ template < typename S, alignment_t Align>
 struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value > > {
 	using sub = S;
 	static const size_t align = Align;
-
-	template < alignment_t A = Align >
-	constexpr static size_t trv()
+	
+	template < alignment_t A >
+	static constexpr size_t align_(size_t o)
 	{
-		return sizeof_<sub, A>();
+		size_t a = A; 
+		size_t m = (a-1);
+		return (o & m) ? ((o + (a-1)) & ~m) : o;
+	}
+
+	/* type_t をネストして alignment を override するとき,
+	   type_t の配置オフセットによって type_t 自身が pack を含む可能性がある */
+	template < alignment_t EA = Align >
+	constexpr static size_t trv(size_t placement = 0)
+	{
+		if (EA == Align)
+			return sizeof_<sub, EA>();
+		/* 自身の align と Enclosure の align が異なる場合,
+		   自身の align で sizeof_ を計算し, placement を加えた offset を enclosure の align で計算する.
+		 */
+		size_t size = sizeof_<sub, Align>();
+		size_t offset = placement + size;
+		/* TODO: 最大 leaf 要素の size をとる alignof_ が必要 */
+		//return align_<alignof_<sub>()>(offset) - placement + size;
+		return size;
 	}
 
 	template < size_t Cur, size_t ...Rest >
@@ -194,6 +267,13 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 		return sub::template offset< Align, Rest... >::value;
 	}
 
+	template < alignment_t A, size_t... Rest > struct get { using type = void; };
+	template < alignment_t A, size_t Pos >	struct get< A, Pos > { using type = sub; };
+	template < alignment_t A, size_t Pos, size_t ... Rest >
+	struct get< A, Pos, Rest...>  {
+		using type = typename sub::template get< Align, Rest ... >::type;
+	};
+	
 	/* get インターフェイスのために compo_t の派生としたが, type_t 自身は compo_t を継承しない.
 	   また variadic parameter もとらないため, 
 	   get< type_t<...>, 0 > とやって sub にアクセスするためにはトリックが必要になった.
