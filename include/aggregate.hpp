@@ -36,7 +36,7 @@ constexpr auto alignof_() -> std::enable_if_t< !has_alignof< T >::value, alignme
 
 template < typename T>
 struct has_align {
-	template < typename U > static auto check(U u) -> decltype(U::align, std::true_type{});
+	template < typename U > static auto check(U u) -> decltype(U::align_mode, std::true_type{});
 	static std::false_type check(...);
 	static bool const value = decltype(check(std::declval<T>()))::value;
 };
@@ -46,19 +46,6 @@ constexpr auto decision_align() -> std::enable_if_t< has_align<T>::value, alignm
 
 template < alignment_t A, typename T>
 constexpr auto decision_align() -> std::enable_if_t< !has_align<T>::value, alignment_t > { return A; }
-
-template < alignment_t A, typename T>
-constexpr auto decision_align_value() -> std::enable_if_t< has_align<T>::value, alignment_t > { return T::align == 0 ? alignof_<T>() : T::align; }
-
-template < alignment_t A, typename T>
-constexpr auto decision_align_value() -> std::enable_if_t< !has_align<T>::value, alignment_t > { return A == 0 ? alignof(T) : A; }
-
-template < typename T >
-struct has_trv {
-	template < typename U > static auto check(U u) -> decltype(u.trv(), std::true_type{}) { }
-	static std::false_type check(...);
-	static bool const value = decltype(check(std::declval<T>()))::value;
-};
 
 template < alignment_t Align, typename T >
 constexpr size_t align(size_t o)
@@ -80,10 +67,19 @@ constexpr size_t align(size_t o)
 	return (o & m) ? ((o + (a-1)) & ~m) : o;
 }
 
+
+template < typename T >
+struct has_trv {
+	template < typename U > static auto check(U u) -> decltype(u.trv(), std::true_type{}) { }
+	static std::false_type check(...);
+	static bool const value = decltype(check(std::declval<T>()))::value;
+};
+
 /* trv を持つ.
    trv はテンプレート引数に align を持つこと.
    (テンプレート引数はデフォルトの alignment を持つべき) */
-template < typename T, alignment_t Align = 1 > constexpr auto sizeof_() -> decltype(T::trv())
+template < typename T, alignment_t Align = 1 >
+constexpr auto sizeof_() -> std::enable_if_t< has_trv<T>::value, size_t >
 {
 	return T::template trv< Align >();
 }
@@ -259,6 +255,10 @@ struct sel_t : public compo_t {
 		using type = typename at_type< Pos, S... >::type::template get< Align, Rest ... >::type;
 	};
 
+	static constexpr alignment_t alignof_()
+	{
+		return constexpr_max(typu::alignof_<S>()...);
+	}
 };
 
 template < typename T, T ...S >
@@ -297,12 +297,13 @@ struct type_t {
 template < typename S, alignment_t Align>
 struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value > > {
 	using sub = S;
-	static const size_t align = Align;
+	static const alignment_t align_mode = Align; /* maybe 0 */
+	static const size_t align = align_mode ? align_mode : sub::alignof_(); /* a concret value. non zero */
 	
 	template < alignment_t A >
 	static constexpr size_t align_(size_t o)
 	{
-		static_assert(A != 0, "align_ need not align-mode");
+		static_assert(A != 0, "align_ needs not align-mode");
 		size_t a = A; 
 		size_t m = (a-1);
 		return (o & m) ? ((o + m) & ~m): o;
@@ -321,7 +322,7 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 		size_t size = sizeof_<sub, Align>();
 		/* ヘッドルームは,自身のアラインメント制約よりも大きなアラインメントに配置されるときに生じる.
 		   ヘッドルームの大きさはコンテナの padding に含まれ, sizeof_<T> には含まれない. このため trv は sizeof_ とは異なる. */
-		return align_< EA ? EA : typu::alignof_<sub>() >(place) - place + size;
+		return align_< EA ? EA : align >(place) - place + size;
 	}
 
 	/* type_t をネストして alignment を override するとき,
@@ -329,21 +330,20 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 	template < alignment_t EA = Align >
 	constexpr static size_t placement(size_t place = 0)
 	{
-		if (EA == Align) {
-			auto r =  sizeof_<sub, EA>(place);
-			return r;
-		}
+		if (EA == Align) 
+			return sizeof_<sub, EA>(place);
 		/* 自身の align と Enclosure の align が異なる場合,
 		   自身の align で sizeof_ を計算し, placement を加えた offset を enclosure の align で計算する.
 		 */
 		size_t size = sizeof_<sub, Align>(place);
-		return align_< EA ? EA : (Align ? Align : typu::alignof_<sub>()) >(place) - place + size;
+		return align_< EA ? EA : align >(place) - place + size;
 	}
 
 	/* ignore the first 0 */
 	template < size_t Cur, size_t ...Rest >
 	constexpr static size_t offset_from()
 	{
+		static_assert(Cur == 0, "type_t has to get 0 for the first enclosure");
 		return sub::template offset< Align, 0, Rest... >::value;
 	}
 
@@ -355,11 +355,9 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 		return offs;
 	}
 
-	static constexpr alignment_t alignof__() {return Align == 0 ? sub::alignof_() : Align;}
-
 	template < alignment_t A, size_t Acc, size_t Pos, size_t ... Rest >
 	struct offset {
-		static const size_t value = check_aligned< A, sub::template offset< alignof__(), Acc, Rest... >::value >();
+		static const size_t value = check_aligned< A, sub::template offset< align, Acc, Rest... >::value >();
 	};
 
 	template < alignment_t A, size_t... Rest > struct get { using type = void; };
@@ -384,10 +382,7 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 		using type = sub;
 	};
 
-	static constexpr alignment_t alignof_()
-	{
-		return alignof__();
-	}
+	static constexpr alignment_t alignof_()	{ return align;	}
 };
 
 /* get 公開インターフェイス.
@@ -398,7 +393,7 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 template < typename T, size_t... Pos >
 struct get {
 	using type = typename T::template inner< Pos... >::type;
-	static const size_t size = sizeof_<type, T::align >();
+	static const size_t size = sizeof_<type, T::align_mode >();
 	static const size_t offset = T::template offset_from<Pos...>();
 };
 
