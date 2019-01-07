@@ -151,6 +151,11 @@ int main()
 	printf("offset: %zu (16)<0,6>\n", get< Aligned0_4, 0, 6>::offset);
 	printf("offset: %zu (20)<0,7>\n", get< Aligned0_4, 0, 7>::offset);
 
+	using T0 = type_t< agg_t< char, type_t< agg_t< int >, 0> >, 1 >;
+	printf("offset: %zu <0,1>    (1) align:1\n", get< T0, 0, 1 >::offset);
+	printf("offset: %zu <0,1,0>  (4) align:1->0\n", get< T0, 0, 1, 0 >::offset);
+	printf("offset: %zu <0,1,0,0>(4) align:0\n", get< T0, 0, 1, 0, 0 >::offset);
+	
 	using SubT = type_t < agg_t< char, char, char >, 0 >;
 	using SubT2 = type_t < agg_t< char, SubT, char >, 0 >;
 	using Aligned0_5 = type_t< agg_t< char, char, char, SubT, SubT, SubT2, int, char >, 0 >;
@@ -179,11 +184,13 @@ int main()
 	/*     0 1    5   8      F 
           |-+----+---+--------|
 	  +0  |1|   4|pad|       8|
+           type_t^   ^agg_t
       +10 |1|1|1|
 	 */
 	printf("size(align:-): %zu (19)\n", get< Aligned_1_0, 0 >::size);
 	printf("offset<0,0>(align:1): %zu (0)\n", get< Aligned_1_0, 0, 0>::offset);
 	printf("offset<0,1>(align:1): %zu (1)\n", get< Aligned_1_0, 0, 1>::offset);
+	/* align=0 ‚Ì type_t ‚ÍãˆÊ enclosure ‚Ì placement align ‚É]‚¤ */
 	printf("offset<0,2>(align:0): %zu (5)\n", get< Aligned_1_0, 0, 2>::offset);
 	printf("size: %zu (8)\n", get< Aligned_1_0, 0, 2>::size);
 #if 0
@@ -191,20 +198,24 @@ int main()
 		   get< Aligned_1_0, 0, 2>::type::align,
 		   alignof_< get< Aligned_1_0, 0, 2, 0>::type >());
 #endif
-	/* agg_t ‚Ì alignment ‚Í–¢’è‹` */
-	printf("offset<0,2,0>(align:0): %zu (5)\n", get< Aligned_1_0, 0, 2, 0>::offset);
+	/* agg_t ‚Ì alignment ‚Í type_t ‚É]‚¤ */
+	printf("offset<0,2,0>(align:0): %zu (8)\n", get< Aligned_1_0, 0, 2, 0>::offset);
 	printf("offset<0,2,0,0>(align:0): %zu (8)\n", get< Aligned_1_0, 0, 2, 0, 0>::offset);
 	//printf("align (align:0): %zu (8)\n", get< Aligned_1_0, 0, 2>::type::alignof_()); // debug
 	printf("offset<0,3>(align:1): %zu (16)\n", get< Aligned_1_0, 0, 3>::offset);
 	printf("offset<0,4>(align:1): %zu (17)\n", get< Aligned_1_0, 0, 4>::offset);
 	printf("offset<0,5>(align:1): %zu (18)\n", get< Aligned_1_0, 0, 5>::offset);
 
-	/* Œã•û‚É padding ‚ª“ü‚é */
+	/* ‘O•û,Œã•û‚É padding ‚ª“ü‚é(‚Ç‚¿‚ç‚à type_t ‚ÌŠO‚É padding ‚ª‚ ‚é) */
 	using Aligned_0_1 = type_t< agg_t< char, int, char, type_t< agg_t<double>, 2>, int, char, char >, 0>;
-	/*     0 1   4    8    |D F|
-          |-+---+----+-------|
-	  +0  |1|pad|   4|      8|pad|
-      +10 |1|1|1|
+	/*     0    4    8  |A    F
+          |-+--+----+-+-+------|
+	  +0  |1|pa|   4|1|p|   6/8|
+                        ^type_t/agg_t(align=2)
+          2/8|pa|   4|1|1|
+      +10 |--+--+----+-+-+
+           0 |2 |4   |8|9|
+            ~^  ^int
 	 */
 	printf("size(align:-): %zu (26)\n", get< Aligned_0_1, 0 >::size);
 	printf("offset<0,0>(align:0): %zu (0)\n", get< Aligned_0_1, 0, 0>::offset);

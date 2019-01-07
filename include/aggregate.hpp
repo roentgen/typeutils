@@ -33,7 +33,6 @@ constexpr auto alignof_() -> std::enable_if_t< !has_alignof< T >::value, alignme
 	return alignof(T);
 }
 
-
 template < typename T>
 struct has_align {
 	template < typename U > static auto check(U u) -> decltype(U::align_mode, std::true_type{});
@@ -188,12 +187,12 @@ struct agg_t : public compo_t {
 	   計算の途中も制約を満たす必要がある.
 	   このときの alignment は placement alignment で, 型の要求 alignment に優先する.
 	   (alignment がオーバーライドされるとき, 内側の type_t の align より placement-align が優先される.
-	    ただし type_t の内部は type_t の align が適用される. この padding を type_t が持つ.
+	    ただし type_t の内部は type_t の align が適用される. この padding/headroom を type_t が持つ.
 		headroom は type_t が直接収容する agg_t/sel_t の offset をとれば計算済みとなる)
 		using T = type_t< agg_t< char, type_t< agg_t< int >, 0 >, 1 > のとき:
 		get< T, 0, 1 >::offset は placement-alignment=1 に従い 1
-		get< T, 0, 1, 0>::offset も同様（FIXME)
-		get< T, 0, 1, 0, 0>::offset は内部の alignment に従い 16
+		get< T, 0, 1, 0>::offset は T の内部 alignment に従い 4
+		get< T, 0, 1, 0, 0>::offset は内部の alignment に従い 4
 	*/
 #if 1
 	template < alignment_t Align, size_t Acc, size_t Cur >
@@ -284,15 +283,15 @@ template < typename S, alignment_t Align, typename Enabled = void >
 struct type_t {
 };
 
-/* 収容されるすべての型は固有のアラインメントを持つが,
-   type_t はそれをオーバーライドする.
-   一方, type_t 自身はアラインメントを持たない. 
+/* 収容されるすべての型は固有のアラインメントを持ち, type_t はそれをオーバーライドする.
    type_t は他の type_t に収容されるとき, その type_t のアラインメントにオーバーライドされる.
 
    これは, 上位 type_t がよりコンパクトなアラインを要求するときに要求に矛盾が生じる.
    using T1 = type_t< agg_t< double >, 0 >;
    using T0 = type_t< char, T2, 1>;
-   とすると, T0 の収容型は
+   とすると, T0 の収容型は packed となり T1 も offset=1 となるが,
+   T1 の収容型は自然な align を要求されるので type_t が 7byte の headroom となり
+   T1 収容型のオフセットは 8byte align となる.
 */
 template < typename S, alignment_t Align>
 struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value > > {
@@ -320,8 +319,6 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 		   自身の align で sizeof_ を計算し, placement を加えた offset を enclosure の align で計算する.
 		 */
 		size_t size = sizeof_<sub, Align>();
-		/* ヘッドルームは,自身のアラインメント制約よりも大きなアラインメントに配置されるときに生じる.
-		   ヘッドルームの大きさはコンテナの padding に含まれ, sizeof_<T> には含まれない. このため trv は sizeof_ とは異なる. */
 		return align_< EA ? EA : align >(place) - place + size;
 	}
 
@@ -346,18 +343,18 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 		static_assert(Cur == 0, "type_t has to get 0 for the first enclosure");
 		return sub::template offset< Align, 0, Rest... >::value;
 	}
-
 	
 	template < alignment_t A, size_t offs >
 	constexpr static size_t check_aligned()
 	{
-		//static_assert((offs & ((A==0 ? sub::alignof_() : A) - 1)) == 0, "offset is not aligned");
+		static_assert((offs & ((A==0 ? sub::alignof_() : A) - 1)) == 0, "offset is not aligned");
 		return offs;
 	}
 
 	template < alignment_t A, size_t Acc, size_t Pos, size_t ... Rest >
 	struct offset {
-		static const size_t value = check_aligned< A, sub::template offset< align, Acc, Rest... >::value >();
+		/* type_t の内部 offset の計算にしか呼ばれないので上位 placement align は無視 */
+		static const size_t value = align_< align >(offset_< align, Acc, sub, Rest... >());
 	};
 
 	template < alignment_t A, size_t... Rest > struct get { using type = void; };
@@ -371,7 +368,7 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 	   また variadic parameter もとらないため, 
 	   get< type_t<...>, 0 > とやって sub にアクセスするためにはトリックが必要になった.
 	   とりあえず特殊化で誤魔化す.
-	   (そもそも最初の次元はもう要らないのではないかという気がする) */
+	   (そもそも最初の次元はもう要らないのではないかという気がするが type_t は alignment override の際境界となる) */
 	template < size_t ... Pos > struct inner;
 	template < size_t Cur, size_t ...Rest >
 	struct inner< Cur, Rest... > {
