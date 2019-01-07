@@ -187,7 +187,7 @@ int main()
 	printf("offset<0,2>(align:0): %zu (5)\n", get< Aligned_1_0, 0, 2>::offset);
 	printf("size: %zu (8)\n", get< Aligned_1_0, 0, 2>::size);
 #if 0
-	printf("size: %zu (8) placement-align:1 type_t-align:%zu real-align:%zu\n", get< Aligned_1_0, 0, 2>::type::placement<0,1>(5),
+	printf("size: %zu (8) placement-align:1 type_t-align:%zu real-align:%zu\n", get< Aligned_1_0, 0, 2>::type::placement<1>(5),
 		   get< Aligned_1_0, 0, 2>::type::align,
 		   alignof_< get< Aligned_1_0, 0, 2, 0>::type >());
 #endif
@@ -217,7 +217,7 @@ int main()
 	printf("real align<0,3> (align:0): %zu (8)\n", typu::alignof_< get< Aligned_0_1, 0, 3>::type::sub >()); // debug
 	printf("size  (align:1): %zu (8)\n", get< Aligned_0_1, 0, 3>::type::trv<1>(10)); // debug
 	printf("size  (align:0): %zu (8)\n", get< Aligned_0_1, 0, 3>::size); // debug
-	printf("size  (align:0): %zu (8) padded\n", get< Aligned_0_1, 0, 3>::type::placement<0,0>(10)); // debug
+	printf("size  (align:0): %zu (8) padded\n", get< Aligned_0_1, 0, 3>::type::placement<0>(10)); // debug
 	printf("offset<0,4>(align:0): %zu (20)\n", get< Aligned_0_1, 0, 4>::offset);
 	//printf("align (align:0): %zu (4)\n", Aligned_0_1::alignof_()); // debug
 	printf("offset<0,5>(align:0): %zu (24)\n", get< Aligned_0_1, 0, 5>::offset);
