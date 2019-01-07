@@ -103,14 +103,14 @@ struct has_placement {
 };
 
 /* placement を考慮する size 計算を呼び出す. */
-template < typename T, alignment_t LastAlign, alignment_t Align = 1 >
-constexpr auto sizeof_(size_t place) -> std::enable_if_t< has_placement<T, LastAlign>::value, size_t >
+template < typename T, alignment_t Align = 1 >
+constexpr auto sizeof_(size_t place) -> std::enable_if_t< has_placement<T, Align>::value, size_t >
 {
-	return T::template placement< LastAlign, Align >(place);
+	return T::template placement< Align >(place);
 }
 
-template < typename T, alignment_t LastAlign, alignment_t Align = 1 >
-constexpr auto sizeof_(size_t) -> std::enable_if_t< !has_placement<T, LastAlign>::value, size_t >
+template < typename T, alignment_t Align = 1 >
+constexpr auto sizeof_(size_t) -> std::enable_if_t< !has_placement<T, Align>::value, size_t >
 {
 	return align<Align, T>(sizeof(T));
 }
@@ -123,50 +123,16 @@ constexpr CAR constexpr_max(CAR&& car, CDR&&... cdr){
 	(void)s{ (void(r = r < cdr ? cdr : r),0)... };
 	return r;
 }
-
-#if 1
-template < typename Prev, alignment_t Align, size_t Acc, typename ...Ts >
-struct sigma_size_impl {
-	static const size_t value = Acc;
-};
-	
-template < typename Prev, alignment_t Align, size_t Acc, typename CAR>
-struct sigma_size_impl< Prev, Align, Acc, CAR > {
-	static const alignment_t a0_ = decision_align_value< Align, CAR >();
-	static const alignment_t a1_ = decision_align_value< Align, Prev >();
-	static const size_t value = decision_align< Align, Prev >() != decision_align< Align, CAR >() ?
-		align< a0_, CAR >(Acc + sizeof_< CAR, a1_, a0_ >(Acc)) :
-		align< a0_, CAR >(Acc + sizeof_< CAR, a1_, a0_ >(Acc));
-};
-
-template < typename Prev, alignment_t Align, size_t Acc, typename CAR, typename ...CDR>
-struct sigma_size_impl< Prev, Align, Acc, CAR, CDR... > {
-	static const alignment_t a0_ = decision_align_value< Align, CAR >();
-	static const alignment_t a1_ = decision_align_value< Align, Prev >();
-	static const size_t value = decision_align< Align, Prev >() != decision_align< Align, CAR >() ?
-		sigma_size_impl< CAR, a0_, align< a0_, CAR >(Acc + sizeof_< CAR, a1_, a0_ >(Acc)), CDR... >::value :
-		sigma_size_impl< CAR, a0_, align< a0_, CAR >(Acc + sizeof_< CAR, a1_, a0_ >(Acc)), CDR... >::value;
-};
-#endif
-
 	
 template < alignment_t Align, size_t Acc, typename ...Ts >
 struct sigma_size {
 	static const size_t value = Acc;
 };
 
-/*
-template < alignment_t Align, size_t Acc, typename CAR>
-struct sigma_size< Align, Acc, CAR > {
-	static const alignment_t a_ = decision_align< Align, CAR >();
-	static const size_t value = align< Align, CAR >(Acc + sizeof_< CAR, a_, a_ >(Acc));
-};
-*/
 template < alignment_t Align, size_t Acc, typename CAR, typename ...CDR>
 struct sigma_size< Align, Acc, CAR, CDR... > {
 	static const alignment_t a_ = decision_align< Align, CAR >();
-	//static const size_t value = sigma_size_impl< CAR, a_, align< a_, CAR >(Acc + sizeof_< CAR, a_ , Align>(Acc)), CDR... >::value;
-	static const size_t value = sigma_size< Align, align< a_, CAR >(Acc + sizeof_< CAR, a_, a_ >(Acc)), CDR... >::value;
+	static const size_t value = sigma_size< Align, align< a_, CAR >(Acc + sizeof_< CAR, a_ >(Acc)), CDR... >::value;
 };
 
 template < alignment_t Align, size_t Acc, typename ...Ts >
@@ -214,7 +180,7 @@ struct agg_t : public compo_t {
 		return sigma_size< Align, 0, S... >::value;
 	}
 
-	template < alignment_t Last, alignment_t Align = 1 >
+	template < alignment_t Align = 1 >
 	static constexpr size_t placement(size_t place = 0)
 	{
 		return trv<Align>(place);
@@ -224,33 +190,31 @@ struct agg_t : public compo_t {
 
 	/* offset は Idx-1 までのサイズの総和だが, address alignment 制約の保証のために Idx の type を知る必要がある.
 	   計算の途中も制約を満たす必要がある.
-
-	   FIXME:
-	   type がもし type_t であって、アラインメントオーバーライドが行われるとしても, 
-	   一回の sigma_type_list の呼び出しを通じては一貫して上位の制約が用いられるべきだが
-	   なぜか逆でないと正しく動かない.
-	   具体的には static const alignment_t a_ = decision_align< Align, T) >(); ではなく,
-	   単に Align を用いるべきだ.
+	   このときの alignment は placement alignment で, 型の要求 alignment に優先する.
+	   (alignment がオーバーライドされるとき, 内側の type_t の align より placement-align が優先される.
+	    ただし type_t の内部は type_t の align が適用される. この padding を type_t が持つ.
+		headroom は type_t が直接収容する agg_t/sel_t の offset をとれば計算済みとなる)
+		using T = type_t< agg_t< char, type_t< agg_t< int >, 0 >, 1 > のとき:
+		get< T, 0, 1 >::offset は placement-alignment=1 に従い 1
+		get< T, 0, 1, 0>::offset も同様（FIXME)
+		get< T, 0, 1, 0, 0>::offset は内部の alignment に従い 16
 	*/
 #if 1
 	template < alignment_t Align, size_t Acc, size_t Cur >
 	struct offset< Align, Acc, Cur > {
-		/* 各 row 内の総和 */
+		/* 最終 column の 総和. 最後の要素の加算前の値を返す */
 		using T_ = typename at_type< Cur, S...>::type;
-		static const alignment_t a_ = Align; //decision_align< Align, T_>();
-		static const size_t value = align< Align, T_ >(sigma_type_list< a_, Acc >(typename to_types< Cur, S... >::types{}));
+		static const size_t value = align< Align, T_ >(sigma_type_list< Align, Acc >(typename to_types< Cur, S... >::types{}));
 	};
 #endif
 	
 	template < alignment_t Align, size_t Acc, size_t Cur, size_t ... Rest >
 	struct offset< Align, Acc, Cur, Rest...>  {
 		using T_ = typename at_type< Cur, S...>::type;
-		static const alignment_t a_ = Align; //decision_align< Align, T_>();
 		/* column ごとの総和: */
-		static const size_t s = align< Align, T_ >(sigma_type_list< a_, Acc >(typename to_types< Cur, S... >::types{}));
+		static const size_t s = align< Align, T_ >(sigma_type_list< Align, Acc >(typename to_types< Cur, S... >::types{}));
 		
-		//static const size_t value = align< Align, T_ >(offset_< a_, s, T_, Rest... >());
-		static const size_t value = align< Align, T_ >(offset_< Align, s, typename at_type< Cur, S... >::type, Rest... >());
+		static const size_t value = align< Align, T_ >(offset_< Align, s, T_, Rest... >());
 	};
 
 	template < alignment_t Align, size_t... Rest > struct get { using type = void; };
@@ -275,7 +239,7 @@ struct sel_t : public compo_t {
 		return constexpr_max(sizeof_<S, Align>()...);
 	}
 
-	template < alignment_t Last, alignment_t Align = 1 >
+	template < alignment_t Align = 1 >
 	constexpr static size_t placement(size_t place=0)
 	{
 		return trv<Align>(place);
@@ -347,43 +311,32 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 	/* type_t をネストして alignment を override するとき,
 	   type_t の配置オフセットによって type_t 自身が pack を含む可能性がある */
 	template < alignment_t EA = Align >
-	constexpr static size_t trv(size_t placement = 0)
+	constexpr static size_t trv(size_t place = 0)
 	{
 		if (EA == Align)
 			return sizeof_<sub, EA>();
 		/* 自身の align と Enclosure の align が異なる場合,
 		   自身の align で sizeof_ を計算し, placement を加えた offset を enclosure の align で計算する.
 		 */
-		size_t ma = typu::alignof_<sub>();
-		/* effective alignment for the members */
-		size_t iea = Align == 0 ? ma : Align;
-		/* effective alignment for placement */
-		size_t pea = EA == 0 ? ma : EA;
-		
 		size_t size = sizeof_<sub, Align>();
 		/* ヘッドルームは,自身のアラインメント制約よりも大きなアラインメントに配置されるときに生じる.
 		   ヘッドルームの大きさはコンテナの padding に含まれ, sizeof_<T> には含まれない. このため trv は sizeof_ とは異なる. */
-		size_t offset = placement;
-		/* TODO: 最大 leaf 要素の size をとる alignof_ が必要 */
-		return align_< EA ? EA : typu::alignof_<sub>() >(offset) - placement + size;
-		//return ((EA == 0) ? align_< typu::alignof_<sub>() >(offset) : align_< EA >(offset)) - placement + size;
+		return align_< EA ? EA : typu::alignof_<sub>() >(place) - place + size;
 	}
 
 	/* type_t をネストして alignment を override するとき,
 	   type_t の配置オフセットによって type_t 自身が pack を含む可能性がある */
-	template < alignment_t LastAlign, alignment_t EA = Align >
+	template < alignment_t EA = Align >
 	constexpr static size_t placement(size_t place = 0)
 	{
 		if (EA == Align) {
-			auto r =  sizeof_<sub, 0, EA>(place);
+			auto r =  sizeof_<sub, EA>(place);
 			return r;
 		}
 		/* 自身の align と Enclosure の align が異なる場合,
 		   自身の align で sizeof_ を計算し, placement を加えた offset を enclosure の align で計算する.
 		 */
-		size_t size = sizeof_<sub, 0, Align>(place);
-		//return align_< constexpr_max((Align == 0 ? typu::alignof_<sub>() : Align),
-		//							 (EA == 0 ? typu::alignof_<sub>() : EA)) >(place) - place + size;
+		size_t size = sizeof_<sub, Align>(place);
 		return align_< EA ? EA : (Align ? Align : typu::alignof_<sub>()) >(place) - place + size;
 	}
 
