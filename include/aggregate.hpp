@@ -380,6 +380,7 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 	};
 
 	static constexpr alignment_t alignof_()	{ return align;	}
+
 };
 
 /* get 公開インターフェイス.
@@ -392,6 +393,8 @@ struct get {
 	using type = typename T::template inner< Pos... >::type;
 	static const size_t size = sizeof_<type, T::align_mode >();
 	static const size_t offset = T::template offset_from<Pos...>();
+
+	static inline constexpr type* addr(void* ptr) { return reinterpret_cast< type* >(reinterpret_cast<char*>(ptr) + offset); }
 };
 
 }

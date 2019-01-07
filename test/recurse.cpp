@@ -155,6 +155,16 @@ int main()
 	printf("offset: %zu <0,1>    (1) align:1\n", get< T0, 0, 1 >::offset);
 	printf("offset: %zu <0,1,0>  (4) align:1->0\n", get< T0, 0, 1, 0 >::offset);
 	printf("offset: %zu <0,1,0,0>(4) align:0\n", get< T0, 0, 1, 0, 0 >::offset);
+
+	void* storage = malloc(get<T0, 0>::size);
+	memset(storage, 0xff, get<T0, 0>::size);
+	*get<T0, 0, 0>::addr(storage) = 'a';
+	*get<T0, 0, 1, 0, 0>::addr(storage) = 0xdeadbeef;
+	for (int i = 0; i < get<T0, 0>::size; i ++) {
+		printf("%02x ", *(reinterpret_cast< char* >(storage) + i) & 0xff);
+	}
+	printf ("\n");
+	free(storage);
 	
 	using SubT = type_t < agg_t< char, char, char >, 0 >;
 	using SubT2 = type_t < agg_t< char, SubT, char >, 0 >;
@@ -234,6 +244,7 @@ int main()
 	printf("offset<0,5>(align:0): %zu (24)\n", get< Aligned_0_1, 0, 5>::offset);
 	printf("offset<0,6>(align:0): %zu (25)\n", get< Aligned_0_1, 0, 6>::offset);
 
+	
 	//printf("align  (align:0): %zu (20) padded\n", get< Aligned_0_1, 0, 4>::type::trv<0>(20)); // debug
 	return 0;
 }
