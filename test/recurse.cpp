@@ -1,3 +1,7 @@
+/**
+ * (C) roentgen 
+ * Released under the MIT license.
+ */
 #include <stdio.h>
 #include <aggregate.hpp>
 

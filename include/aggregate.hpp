@@ -1,3 +1,7 @@
+/**
+ * (C) roentgen 
+ * Released under the MIT license.
+ */
 #if !defined(TYPEUTIL_AGGREGATE_HPP__)
 #define TYPEUTIL_AGGREGATE_HPP__
 #include <utility>

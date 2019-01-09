@@ -1,3 +1,7 @@
+/**
+ * (C) roentgen 
+ * Released under the MIT license.
+ */
 #if !defined(TYPEUTIL_AT_HPP__)
 #define TYPEUTIL_AT_HPP__
 #include <type_traits>
