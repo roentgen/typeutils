@@ -223,6 +223,8 @@ struct agg_t : public compo_t {
 		using type = typename at_type< Pos, S... >::type::template get< Align, Rest ... >::type;
 	};
 
+	static constexpr size_t elementsof() { return sizeof...(S); };
+	
 	static constexpr alignment_t alignof_()
 	{
 		return constexpr_max(typu::alignof_<S>()...);
@@ -258,6 +260,8 @@ struct sel_t : public compo_t {
 		using type = typename at_type< Pos, S... >::type::template get< Align, Rest ... >::type;
 	};
 
+	static constexpr size_t elementsof() { return sizeof...(S); };
+
 	static constexpr alignment_t alignof_()
 	{
 		return constexpr_max(typu::alignof_<S>()...);
@@ -273,6 +277,19 @@ struct sel_t_t {
 	}
 };
 
+template < typename T >
+struct has_get {
+	template < typename U > static auto check(U u) -> decltype(std::declval<typename U::template get<0>::type>(), std::true_type{}) { }
+	static std::false_type check(...);
+	static bool const value = decltype(check(std::declval<T>()))::value;
+};
+
+template < typename T >
+constexpr auto elementsof() -> std::enable_if_t< !has_get<T>::value, size_t > { return 0; }
+
+template < typename T >
+constexpr auto elementsof() -> std::enable_if_t< has_get<T>::value, size_t > { return T::elementsof(); }
+	
 /* 
    公開インターフェス get を使って offset, size にアクセスするのに struct get を持っている必要があるが,
    has_get のようなものを作って SFINAE でチェックするのが面倒になってきたので
@@ -347,7 +364,13 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 		static_assert(Cur == 0, "type_t has to get 0 for the first enclosure");
 		return sub::template offset< Align, 0, Rest... >::value;
 	}
-	
+
+	template < size_t Cur, size_t ...Rest >
+	constexpr static size_t offset_from(std::index_sequence<Cur, Rest...>&&)
+	{
+		return offset_from< Cur, Rest... >();
+	}
+
 	template < alignment_t A, size_t offs >
 	constexpr static size_t check_aligned()
 	{
@@ -382,6 +405,11 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 	struct inner <Cur> {
 		using type = sub;
 	};
+
+	template < size_t ...Pos >
+	static constexpr inner< Pos... > inner_from_seq(std::index_sequence< Pos... >&&);
+	
+	static constexpr size_t elementsof() { return 1; };
 
 	static constexpr alignment_t alignof_()	{ return align;	}
 
