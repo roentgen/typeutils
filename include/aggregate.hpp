@@ -407,7 +407,7 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 	};
 
 	template < size_t ...Pos >
-	static constexpr inner< Pos... > inner_from_seq(std::index_sequence< Pos... >&&);
+	static constexpr auto inner_from_seq(std::index_sequence< Pos... >&&) {return std::declval< inner<Pos...> >();};
 	
 	static constexpr size_t elementsof() { return 1; };
 

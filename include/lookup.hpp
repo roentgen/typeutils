@@ -8,6 +8,7 @@
 #include "aggregate.hpp"
 #include "at.hpp"
 #include <type_traits>
+#include <stdint.h>
 
 namespace typu {
 
