@@ -56,44 +56,35 @@ struct has_name {
 
 template < symbol_t N, typename T >
 constexpr auto check_name_if_has() -> std::enable_if_t<has_name<T>::value, bool> { return T::name == N; }
-
 template < symbol_t N, typename T >
 constexpr auto check_name_if_has() -> std::enable_if_t<!has_name<T>::value, bool> { return false; }
 
 template < symbol_t N, typename T, size_t ... Pos, size_t ... Idx>
-decltype(auto) lu_foreach_maybe_(std::index_sequence<Idx...>&&);
+decltype(auto) lu_foreach_maybe_(std::index_sequence<Idx...>&&); // forward declaretion
 
 
 /* ’Tõ‰Â”\‚Å‚È‚¢Œ^‚É‘Î‚µ‚Ä lu_foreach_maybe_(index_sequence<>{}) ‚ğŒÄ‚Ño‚·‚Æ,
    –ß‚è’l‚Ì„˜_‚Ì‚½‚ß‚ÉÄ‹A‚·‚é‚Ì‚Å“Áê‰»‚Å–¾¦“I‚É”ğ‚¯‚é */
-template < bool compo, typename T, symbol_t N, size_t ...Pos > struct if_traversable;
-
+template < bool compo, typename T, symbol_t N, size_t ...Pos > struct descend_if_traversable;
 template < typename T, symbol_t N, size_t ...Pos >
-struct if_traversable < false, T, N, Pos... > {
+struct descend_if_traversable < false, T, N, Pos... > {
 	using type = decltype(std::make_index_sequence<0>());
 };
-
 template < typename T, symbol_t N, size_t ...Pos >
-struct if_traversable < true, T, N, Pos... > {
+struct descend_if_traversable < true, T, N, Pos... > {
 	using type = decltype(lu_foreach_maybe_< N, T, Pos... >(std::move(std::make_index_sequence<elementsof<T>()>())));
 };
-
-template < symbol_t N, typename T, size_t ...Pos>
-constexpr decltype(auto) call_if_has_get()
-{
-	return typename if_traversable<has_get<T>::value, T, N, Pos...>::type{};
-}
 
 /* test_or_descend_ ‚Í get<T, Idx> ‚ª name/get ‚ğ‚Â‚©‚Ç‚¤‚©‚ÅU•‘‚¢‚ğ•Ï‚¦‚é.
    4 ’Ê‚è‚ÌƒRƒ“ƒrƒl[ƒVƒ‡ƒ“‚É‚È‚é‚Ì‚Å‚»‚ê‚¼‚êê‡•ª‚¯‚µ‚½ sub ŠÖ”‚ÉU‚é */
 template < symbol_t N, typename T, size_t Idx, size_t ...Pos >
-constexpr decltype(auto) test_or_descend_(/*Acc&& acc*/)
+constexpr decltype(auto) test_or_descend_()
 {
 	using type = typename T::template get<0/*align*/, Idx>::type;
 	constexpr bool r = check_name_if_has<N, type>();
-	/* ’â~‚µ‚È‚¢‚È‚ç get<T, Pos..., Idx>::type ‚É‚Â‚¢‚Ä’Tõ‚·‚é(‚©‚à‚µ‚ê‚È‚¢) */
+	/* ’â~‚µ‚È‚¢‚È‚ç get<T, Pos..., Idx>::type ‚É‚Â‚¢‚Ä’Tõ‚·‚é */
 	using Acc = std::index_sequence< Pos..., Idx >;
-	return typename std::conditional< r, Acc, decltype(call_if_has_get<N, type, Pos..., Idx>()) >::type{};
+	return typename std::conditional< r, Acc, typename descend_if_traversable< has_get<type>::value, type, N, Pos..., Idx>::type >::type{};
 }
 
 /*
@@ -127,10 +118,6 @@ struct tod_loop_t <N, T, Idx, Rest...> {
 template < symbol_t N, typename T, size_t ... Pos, size_t ... Idx>
 decltype(auto) lu_foreach_maybe_(std::index_sequence<Idx...>&& s)
 {
-	//bool r = false;
-	//auto v = {false, (r = (r || std::get<0>(check_and_call_<N, T, Acc, Idx, Pos...>(std::move(acc)))))...};
-	//(void)v;
-	//return r ? Acc{} : std::index_sequence<>{};
 	using result = typename tod_loop_t< N, T, Idx...>::template result<Pos...>::type;
 	return result{};
 }
