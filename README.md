@@ -22,6 +22,19 @@ GPU などにデータを送るとき, いちいち構造体を作らずフラ�
 
 というところを目指す.
 
+## lookup.hpp
+
+```c++
+using namespace typu;
+using T = type_t< agg_t< char, int, char, named_t< 0xdeadbeeg, double >, 0 /* natural align */ >;
+
+static_assert(std::is_same< double, typename lu<T, 0xdeadbeef>::type >::value, "found type must be double");
+printf("offset: %zu\n", lu<T, 0xdeadbeef>::offset);
+```
+
+任意の一意なキー値, symbol_t を使って, 内包型に名前をつけることができる.
+名前を介してのアクセスには lu<T, symbol > を使って get と同様コンパイル時定数として行える.
+
 ## at.hpp
 
 ```c++
