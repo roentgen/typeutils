@@ -26,7 +26,7 @@ GPU などにデータを送るとき, いちいち構造体を作らずフラ�
 
 ```c++
 using namespace typu;
-using T = type_t< agg_t< char, int, char, named_t< 0xdeadbeeg, double >, 0 /* natural align */ >;
+using T = type_t< agg_t< char, int, char, named_t< 0xdeadbee, double >, 0 /* natural align */ >;
 
 static_assert(std::is_same< double, typename lu<T, 0xdeadbeef>::type >::value, "found type must be double");
 printf("offset: %zu\n", lu<T, 0xdeadbeef>::offset);
