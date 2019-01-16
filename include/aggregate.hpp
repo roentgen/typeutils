@@ -261,15 +261,6 @@ struct sel_t : public compo_t< S... > {
 	}
 };
 
-template < typename T, T ...S >
-struct sel_t_t {
-	template < alignment_t A=1 >
-	constexpr static size_t trv(size_t placement=0)
-	{
-		return constexpr_max(S...);
-	}
-};
-
 template < typename T >
 struct has_get {
 	template < typename U > static auto check(U u) -> decltype(std::declval<typename U::template get<0>::type>(), std::true_type{}) { }

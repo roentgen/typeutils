@@ -20,7 +20,6 @@ int main()
 	/* aggregation a selector type and x */
 	printf("%zu\n", sigma_size< 1, 0, type_t< int, 1 > >::value);
 	printf("%zu\n", sel_t< int >::trv());
-	printf("%zu\n", sigma_size< 1, 0, sel_t_t< size_t, 1, 2, 3 > >::value);
 	printf("%zu\n", type_t< agg_t< char, sel_t< int, char > , int >, 1 >::trv());
 
 	using Simple1 = type_t< agg_t< char, char, int, double >, 1 >;
