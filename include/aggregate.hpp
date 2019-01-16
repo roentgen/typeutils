@@ -13,10 +13,17 @@ namespace typu {
 
 extern std::nullptr_t enabler;
 
-struct compo_t {
-};
-
 using alignment_t = size_t;
+
+template < typename ... S > 
+struct compo_t  {
+	template < alignment_t Align, size_t... Rest > struct get { using type = void; };
+	template < alignment_t Align, size_t Pos >	struct get< Align, Pos > { using type = typename at_type< Pos, S... >::type; };
+	template < alignment_t Align, size_t Pos, size_t ... Rest >
+	struct get< Align, Pos, Rest...>  {
+		using type = typename at_type< Pos, S... >::type::template get< Align, Rest ... >::type;
+	};
+};
 
 template < typename T >
 struct has_alignof {
@@ -172,7 +179,7 @@ constexpr auto offset_() -> std::enable_if_t< !has_offset<T, Align, Acc, Pos...>
 /* aggregation
  */
 template < typename ...S >
-struct agg_t : public compo_t {
+struct agg_t : public compo_t< S... > {
 	template < alignment_t Align = 1 >
 	constexpr static size_t trv(size_t placement=0)
 	{
@@ -216,13 +223,6 @@ struct agg_t : public compo_t {
 		static const size_t value = align< Align, T_ >(offset_< Align, s, T_, Rest... >());
 	};
 
-	template < alignment_t Align, size_t... Rest > struct get { using type = void; };
-	template < alignment_t Align, size_t Pos >	struct get< Align, Pos > { using type = typename at_type< Pos, S... >::type; };
-	template < alignment_t Align, size_t Pos, size_t ... Rest >
-	struct get< Align, Pos, Rest...>  {
-		using type = typename at_type< Pos, S... >::type::template get< Align, Rest ... >::type;
-	};
-
 	static constexpr size_t elementsof() { return sizeof...(S); };
 	
 	static constexpr alignment_t alignof_()
@@ -233,7 +233,7 @@ struct agg_t : public compo_t {
 
 /* selector */
 template < typename ...S >
-struct sel_t : public compo_t {
+struct sel_t : public compo_t< S... > {
 	template < alignment_t Align = 1 >
 	constexpr static size_t trv(size_t placement=0)
 	{
@@ -251,13 +251,6 @@ struct sel_t : public compo_t {
 	template < alignment_t Align, size_t Acc, size_t Pos, size_t ... Rest >
 	struct offset< Align, Acc, Pos, Rest...>  {
 		static const size_t value = offset_< Align, Acc, typename at_type< Pos, S... >::type, Rest... >();
-	};
-
-	template < alignment_t Align, size_t... Rest > struct get { using type = void; };
-	template < alignment_t Align, size_t Pos >	struct get< Align, Pos > { using type = typename at_type< Pos, S... >::type; };
-	template < alignment_t Align, size_t Pos, size_t ... Rest >
-	struct get< Align, Pos, Rest...>  {
-		using type = typename at_type< Pos, S... >::type::template get< Align, Rest ... >::type;
 	};
 
 	static constexpr size_t elementsof() { return sizeof...(S); };
@@ -290,20 +283,6 @@ constexpr auto elementsof() -> std::enable_if_t< !has_get<T>::value, size_t > { 
 template < typename T >
 constexpr auto elementsof() -> std::enable_if_t< has_get<T>::value, size_t > { return T::elementsof(); }
 	
-/* 
-   公開インターフェス get を使って offset, size にアクセスするのに struct get を持っている必要があるが,
-   has_get のようなものを作って SFINAE でチェックするのが面倒になってきたので
-   (get を使ってアクセスするのに)収容型は compo_t の派生であること、とした.
-
-   TODO: が、これは失敗であるのでこの制限はなくしたほうがよい.
-   compo_t に型アクセッサ get の実装を移せなければこのやり方には (単なる tag 以上の)意味はないが,
-   get はインデクサ Pos... と派生先での収容型 S... の両方にアクセスするため難しい.
-   compo_t を template にせざるを得ず、そうすると is_base_of で簡単に比較できなくなる.
- */
-template < typename S, alignment_t Align, typename Enabled = void >
-struct type_t {
-};
-
 /* 収容されるすべての型は固有のアラインメントを持ち, type_t はそれをオーバーライドする.
    type_t は他の type_t に収容されるとき, その type_t のアラインメントにオーバーライドされる.
 
@@ -315,10 +294,10 @@ struct type_t {
    T1 収容型のオフセットは 8byte align となる.
 */
 template < typename S, alignment_t Align>
-struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value > > {
+struct type_t : public compo_t< S > {
 	using sub = S;
 	static const alignment_t align_mode = Align; /* maybe 0 */
-	static const size_t align = align_mode ? align_mode : sub::alignof_(); /* a concret value. non zero */
+	static const size_t align = align_mode ? align_mode : alignof_<sub>(); /* a concret value. non zero */
 	
 	template < alignment_t A >
 	static constexpr size_t align_(size_t o)
@@ -384,13 +363,6 @@ struct type_t < S, Align, std::enable_if_t< std::is_base_of< compo_t, S >::value
 		static const size_t value = align_< align >(offset_< align, Acc, sub, Rest... >());
 	};
 
-	template < alignment_t A, size_t... Rest > struct get { using type = void; };
-	template < alignment_t A, size_t Pos >	struct get< A, Pos > { using type = sub; };
-	template < alignment_t A, size_t Pos, size_t ... Rest >
-	struct get< A, Pos, Rest...>  {
-		using type = typename sub::template get< Align, Rest ... >::type;
-	};
-	
 	/* get インターフェイスのために compo_t の派生としたが, type_t 自身は compo_t を継承しない.
 	   また variadic parameter もとらないため, 
 	   get< type_t<...>, 0 > とやって sub にアクセスするためにはトリックが必要になった.
