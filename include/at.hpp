@@ -42,6 +42,7 @@ struct at_types
 	template < typename ... As > 
 	constexpr static decltype(auto) from_ts(type_list< As... >&&)
 	{
+		static_assert(sizeof...(As) > Idx, "Idx out of range");
 		return std::declval< typename at_type< Idx, As... >::type >();
 	}
 
@@ -77,7 +78,11 @@ struct to_types {
 	using type = decltype(to_types_impl< Num, 0, Ts... >::template to(std::make_tuple()));
 
 	template < typename...AccTs >
-	constexpr static type_list< AccTs ... > from_tuple(std::tuple< AccTs ... >&& acc) { return std::declval< type_list< AccTs ... > >(); };
+	constexpr static type_list< AccTs ... > from_tuple(std::tuple< AccTs ... >&& acc)
+	{
+		static_assert(sizeof...(Ts) >= Num, "Num out of range");
+		return std::declval< type_list< AccTs ... > >();
+	};
 	
 	using types = decltype(from_tuple(std::declval< type >()));
 };
