@@ -247,7 +247,7 @@ struct sel_t : public compo_t {
 	}
 
 	template < alignment_t Align, size_t Acc, size_t... Rest > struct offset { static const size_t value = Acc; };
-	//template < alignment_t Align, size_t Acc, size_t Pos >	struct offset< Align, Acc, Pos > { static const size_t value = Acc; };
+	template < alignment_t Align, size_t Acc, size_t Pos >	struct offset< Align, Acc, Pos > { static const size_t value = Acc; };
 	template < alignment_t Align, size_t Acc, size_t Pos, size_t ... Rest >
 	struct offset< Align, Acc, Pos, Rest...>  {
 		static const size_t value = offset_< Align, Acc, typename at_type< Pos, S... >::type, Rest... >();
