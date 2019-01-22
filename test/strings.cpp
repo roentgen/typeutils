@@ -15,6 +15,9 @@ int main()
 	printf("hash ABC: %zu %s\n", "ABC"_hash, "ABC"_hash == 193450027 ? "true" : "false");
 	printf("hash x0000: %zu %s\n", "x0000"_hash, "x0000"_hash == 210731639133 ? "true" : "false");
 	printf("hash X0000: %zu %s\n", "X0000"_hash, "X0000"_hash == 210693689661 ? "true" : "false");
+	// only alphabets, digits, and '_'. others will fail to an assertion
+	//printf("hash [abc]: %zu\n", "[abc]"_hash);
+
 	// conflicts
 	printf("hash FYFYFYEzFYFYFYEzFYEzFYFYFYFYFY == hash EzEzEzEzEzEzEzEzEzEzEzEzEzEzEz: conflicts:%s\n", "FYFYFYEzFYFYFYEzFYEzFYFYFYFYFY"_hash == "EzEzEzEzEzEzEzEzEzEzEzEzEzEzEz"_hash ? "true" : "false");
 	return 0;
