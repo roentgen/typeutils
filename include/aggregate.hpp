@@ -26,6 +26,68 @@ struct compo_t  {
 };
 
 template < typename T >
+struct has_get {
+	template < typename U > static auto check(U u) -> decltype(std::declval<typename U::template get<0>::type>(), std::true_type{}) { }
+	static std::false_type check(...);
+	static bool const value = decltype(check(std::declval<T>()))::value;
+};
+
+template <> struct has_get< void > { static const bool value = false; };
+	
+template < typename T >
+constexpr auto elementsof() -> std::enable_if_t< !has_get<T>::value, size_t > { return 0; }
+
+template < typename T >
+constexpr auto elementsof() -> std::enable_if_t< has_get<T>::value, size_t > { return T::elementsof(); }
+
+template < bool compo, typename T, template < typename > class ...Ms > struct map_if_traversable;
+
+template < typename T, template < typename > class ...Ms >
+struct map_if_traversable < false, T, Ms... > {
+	using type = T;
+};
+template < typename T, template < typename > class ...Ms >
+struct map_if_traversable < true, T, Ms... > {
+	using type = typename T::template mapped< Ms... >::type;
+};
+
+
+template < typename Acc, template < typename > class ...Ms > struct apply_impl { using type = Acc; };
+template < typename Acc, template < typename > class M, template < typename > class ...Ms >
+struct apply_impl< Acc, M, Ms... > { using type = typename apply_impl< typename M< Acc >::type, Ms...>::type; };
+
+template < template < typename > class F, typename Acc, typename ...Ts > struct filter_impl { using type = Acc; };
+template < template < typename > class F, typename Acc, typename T, typename ...Ts >
+struct filter_impl< F, Acc, T, Ts... > { using type = typename filter_impl< F, typename std::conditional< F<T>::value, typename Acc::template cons< T >, Acc >::type, Ts...>::type; };
+
+template < typename T >
+struct not_void {
+	static const bool value = !(std::is_same< T, void >::value);
+};
+
+template < typename T >
+struct not_empty_composite {
+	static const bool value = ((!has_get<T>::value) || elementsof<T>() > 0);
+};
+
+ /* 自己言及的に型を返す必要があるが template template parameter に不完全型を与えるのが clang5.0 までダメ */
+template < template < typename ... > class T, typename ...S >
+struct map_t {
+	template < template < typename > class ...M > struct mapped {
+		template < template <typename> class F, typename ...Ts >
+		static constexpr auto filter(type_list<Ts...>&&) -> typename filter_impl< F, type_list<>, Ts... >::type;
+		
+		using rawtype = decltype(
+			filter< not_empty_composite >(
+				filter< not_void >(type_list< typename apply_impl< typename map_if_traversable< has_get<S>::value, S, M... >::type, M... >::type ... >{})));
+		using type = typename rawtype::template rewrap_t< T >;
+	};
+};
+
+template < typename Out > struct base_mapper { using type = Out; };
+template < typename In > struct mapto { using type = In; };
+
+template < typename T >
 struct has_alignof {
 	template < typename U > static auto check(U u) -> decltype(U::alignof_(), std::true_type{});
 	static std::false_type check(...);
@@ -179,7 +241,7 @@ constexpr auto offset_() -> std::enable_if_t< !has_offset<T, Align, Acc, Pos...>
 /* aggregation
  */
 template < typename ...S >
-struct agg_t : public compo_t< S... > {
+struct agg_t : public compo_t< S... >, public map_t< agg_t, S... > {
 	template < alignment_t Align = 1 >
 	constexpr static size_t trv(size_t placement=0)
 	{
@@ -219,21 +281,16 @@ struct agg_t : public compo_t< S... > {
 		using T_ = typename at_type< Cur, S...>::type;
 		/* column ごとの総和: */
 		static const size_t s = align< Align, T_ >(sigma_type_list< Align, Acc >(typename to_types< Cur, S... >::types{}));
-		
 		static const size_t value = align< Align, T_ >(offset_< Align, s, T_, Rest... >());
 	};
 
 	static constexpr size_t elementsof() { return sizeof...(S); };
-	
-	static constexpr alignment_t alignof_()
-	{
-		return constexpr_max(typu::alignof_<S>()...);
-	}
+	static constexpr alignment_t alignof_()	{ return constexpr_max(typu::alignof_<S>()...);	}
 };
 
 /* selector */
 template < typename ...S >
-struct sel_t : public compo_t< S... > {
+struct sel_t : public compo_t< S... >, public map_t< sel_t, S... > {
 	template < alignment_t Align = 1 >
 	constexpr static size_t trv(size_t placement=0)
 	{
@@ -254,25 +311,9 @@ struct sel_t : public compo_t< S... > {
 	};
 
 	static constexpr size_t elementsof() { return sizeof...(S); };
-
-	static constexpr alignment_t alignof_()
-	{
-		return constexpr_max(typu::alignof_<S>()...);
-	}
+	static constexpr alignment_t alignof_()	{ return constexpr_max(typu::alignof_<S>()...);	}
 };
 
-template < typename T >
-struct has_get {
-	template < typename U > static auto check(U u) -> decltype(std::declval<typename U::template get<0>::type>(), std::true_type{}) { }
-	static std::false_type check(...);
-	static bool const value = decltype(check(std::declval<T>()))::value;
-};
-
-template < typename T >
-constexpr auto elementsof() -> std::enable_if_t< !has_get<T>::value, size_t > { return 0; }
-
-template < typename T >
-constexpr auto elementsof() -> std::enable_if_t< has_get<T>::value, size_t > { return T::elementsof(); }
 	
 /* 収容されるすべての型は固有のアラインメントを持ち, type_t はそれをオーバーライドする.
    type_t は他の type_t に収容されるとき, その type_t のアラインメントにオーバーライドされる.
@@ -370,11 +411,18 @@ struct type_t : public compo_t< S > {
 	};
 
 	template < size_t ...Pos >
-	static constexpr auto inner_from_seq(std::index_sequence< Pos... >&&) {return std::declval< inner<Pos...> >();};
+	static constexpr auto inner_from_seq(std::index_sequence< Pos... >&&) -> inner<Pos...>;// {return std::declval< inner<Pos...> >();};
 	
 	static constexpr size_t elementsof() { return 1; };
-
 	static constexpr alignment_t alignof_()	{ return align;	}
+
+	template < template < typename > class ...M > struct mapped {
+		template < typename ...Ts >
+		static constexpr auto filter(type_list<Ts...>&&) -> typename filter_impl< not_void, type_list<>, Ts... >::type;
+		using rawtype = decltype(filter(type_list< typename apply_impl< typename map_if_traversable< has_get<S>::value, S, M... >::type, M... >::type >{}));
+
+		using type = type_t< decltype(at_types< 0, rawtype >::from_ts(rawtype{})), Align >;
+	};
 
 };
 
@@ -390,6 +438,11 @@ struct get {
 	static const size_t offset = T::template offset_from<Pos...>();
 
 	static inline constexpr type* addr(void* ptr) { return reinterpret_cast< type* >(reinterpret_cast<char*>(ptr) + offset); }
+};
+
+template < typename T, template < typename > class...Ms >
+struct morph {
+	using mapped = typename T::template mapped< Ms... >::type;
 };
 
 }
