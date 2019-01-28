@@ -71,7 +71,7 @@ struct chtype {
 
 
 /* DJB hash: Õ“Ë‚ª’m‚ç‚ê‚Ä‚¢‚é‚Ì‚Å’ˆÓ */
-constexpr uint64_t operator ""_hash(const char* str, size_t l)
+constexpr uint64_t operator ""_hash(const char* str, std::size_t l)
 {
 	uint64_t h = 5381;
 	chtype< char > c('\0');
@@ -82,7 +82,7 @@ constexpr uint64_t operator ""_hash(const char* str, size_t l)
 	return h;
 }
 
-constexpr size_t length(const char* str) { return str[0] != 0 ? 1 + length(str + 1) : 0; }
+constexpr std::size_t length(const char* str) { return str[0] != 0 ? 1 + length(str + 1) : 0; }
 
 #if defined(__GNUC__)
 /* gcc/clang ‚Å‚Í GNU extension ‚Æ‚µ‚Ä‚±‚Ì literal operator ‚ªg‚¦‚é. */

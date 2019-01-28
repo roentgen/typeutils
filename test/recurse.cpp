@@ -4,6 +4,7 @@
  */
 #include <stdio.h>
 #include <aggregate.hpp>
+#include <string.h>
 
 int main()
 {

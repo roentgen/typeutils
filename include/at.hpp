@@ -6,12 +6,20 @@
 #define TYPEUTIL_AT_HPP__
 #include <type_traits>
 #include <utility>
-#include <iostream>
+#include <tuple>
 
 namespace typu {
 
 template < typename ... Ts >
 struct type_list {
+	/* deduce from arg  */
+	template < template < typename ... > class Compo >
+	static constexpr auto rewrap(type_list<Ts...>&&) -> Compo< Ts... >;
+
+	template < template < typename ... > class Compo >
+	using rewrap_t = Compo< Ts ... >;
+
+	template < typename T >	using cons = type_list< Ts..., T >;
 };
 
 template <size_t Idx, size_t I, typename... Ts>
@@ -43,7 +51,7 @@ struct at_types
 	constexpr static decltype(auto) from_ts(type_list< As... >&&)
 	{
 		static_assert(sizeof...(As) > Idx, "Idx out of range");
-		return std::declval< typename at_type< Idx, As... >::type >();
+		return typename at_type< Idx, As... >::type{};
 	}
 
 	using type = decltype(from_ts(std::declval< Ts >()));
@@ -66,7 +74,7 @@ struct to_types_impl< Idx, I, CAR, CDR... > {
 	template < typename... AccTs >
 	constexpr static decltype(auto) to(std::tuple< AccTs ... >&& acc)
 	{
-		return to_types_impl< Idx, I + 1, CDR...>::template to(std::tuple_cat(acc, std::declval< std::tuple< CAR > >()));
+		return to_types_impl< Idx, I + 1, CDR...>::template to(std::tuple_cat(acc, std::tuple< CAR >{}));
 	}
 };
 
