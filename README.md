@@ -10,6 +10,9 @@ char* storage = reinterpret_cast< char* >(malloc(get<T, 0>::size));
 *get<T, 0, 2>::addr(storage) = 'd';
 *get<T, 0, 3>::addr(storage) = 3.141592;
 
+/* convert double -> float */
+template <> struct mapto< double > : public base_mapper< float >{};
+using S = typename morph< T, mapto >::mapped;
 ```
 
 strcuture/union like なメタタイプ.
@@ -17,6 +20,7 @@ GPU などにデータを送るとき, いちいち構造体を作らずフラ�
 
 * struct を作らないのでメタプログラミングにフレンドリー
 * alignment safe: 異なるアライン要件をネストさせても大丈夫
+* map を使って同相の型を新しく生成できる
 * アプリケーション側は cast 不要で、コンパイラによる alias 解析を妨げない
 * なるべく型安全
 
