@@ -38,11 +38,7 @@ int main()
 	using T3 = type_t< agg_t< int, type_t< agg_t< int, int, float[16] >, 16 >, char >, 0 >;
 	printf("T3 -> %s\n", abi::__cxa_demangle(typeid(typename morph< T3, mapto >::mapped).name(), 0, 0, &status));
 
-	/* KNOWN ISSUE: 
-	   native の配列を型パラメータに与えると(配列を関数の戻り値にできないため) lu で lookup できなくなる. 
-	   std::array を使えば問題ないが互換性はない.
-	*/
-	using T4 = type_t< agg_t< int, named_t< "matrix"_hash, type_t< agg_t< int, int, std::array< float, 16 > >, 16 > >, char >, 0 >;
+	using T4 = type_t< agg_t< int, named_t< "matrix"_hash, type_t< agg_t< int, int, float[16] >, 16 > >, char >, 0 >;
 	using S4 = typename lu< T4, "matrix"_hash >::type;
 	printf("S4 %s\n", abi::__cxa_demangle(typeid(S4).name(), 0, 0, &status));
 	printf("T4 -> %s\n", abi::__cxa_demangle(typeid(typename morph< S4, mapto >::mapped).name(), 0, 0, &status));
