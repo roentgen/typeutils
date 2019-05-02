@@ -132,8 +132,9 @@ constexpr decltype(auto) lu_foreach_maybe()
 template < typename T, typename Pos, bool F >
 struct lu_impl {
 	using pos = Pos;
-	using type = typename decltype(T::inner_from_seq(pos{}))::type::type;
-	
+	using rawtype = typename decltype(T::inner_from_seq(pos{}))::type;
+	using type = typename rawtype::type;
+
 	static const bool found = true;
 
 	static const size_t size = sizeof_<type, T::align_mode >();

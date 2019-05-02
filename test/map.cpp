@@ -35,11 +35,13 @@ int main()
 	using T2 = type_t< agg_t< int, agg_t< int, int >, char >, 0 >;
 	printf("T2 -> %s\n", abi::__cxa_demangle(typeid(typename morph< T2, mapto3 >::mapped).name(), 0, 0, &status));
 
-	using T3 = type_t< agg_t< int, type_t< agg_t< int, int, float[16] >, 16 >, char >, 0 >;
+	using T3 = type_t< agg_t< int, type_t< agg_t< named_t< 0, int> , int, float[16] >, 16 >, char >, 0 >;
 	printf("T3 -> %s\n", abi::__cxa_demangle(typeid(typename morph< T3, mapto >::mapped).name(), 0, 0, &status));
 
 	using T4 = type_t< agg_t< int, named_t< "matrix"_hash, type_t< agg_t< int, int, float[16] >, 16 > >, char >, 0 >;
 	using S4 = typename lu< T4, "matrix"_hash >::type;
+	printf("T4 %s\n", abi::__cxa_demangle(typeid(T4).name(), 0, 0, &status));
+	//printf("T4 %s\n", abi::__cxa_demangle(typeid(typename morph< T4, mapto3 >::mapped).name(), 0, 0, &status));
 	printf("S4 %s\n", abi::__cxa_demangle(typeid(S4).name(), 0, 0, &status));
 	printf("T4 -> %s\n", abi::__cxa_demangle(typeid(typename morph< S4, mapto >::mapped).name(), 0, 0, &status));
 

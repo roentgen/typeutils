@@ -70,7 +70,7 @@ struct not_empty_composite {
 	static const bool value = ((!has_get<T>::value) || elementsof<T>() > 0);
 };
 
- /* 自己言及的に型を返す必要があるが template template parameter に不完全型を与えるのが clang5.0 までダメ */
+/* 自己言及的に型を返す必要があるが template template parameter に不完全型を与えるのが clang5.0 までダメ */
 template < template < typename ... > class T, typename ...S >
 struct map_t {
 	template < template < typename > class ...M > struct mapped {

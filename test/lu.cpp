@@ -34,6 +34,11 @@ int main()
 	printf("agg:   %zu (14)\n", lu< Simple3, 0xdeadbeef >::offset);
 	printf("%s\n", typeid(typename lu< Simple3, 0xdeadbeef >::type).name());
 
+	using Simple4 = type_t< agg_t< char[2], int, double, named_t< 0xdeadbeef, agg_t< long[2], int, named_t< 0xcafebabe, int > > > >, 1 >;
+	printf("agg:   %zu (14)\n", lu< Simple4, 0xdeadbeef >::offset);
+	printf("%s\n", typeid(typename lu< Simple4, 0xdeadbeef >::type).name());
+	printf("%s\n", typeid(typename lu< Simple4, 0xdeadbeef >::rawtype).name());
+
 	return 0;
 }
 
