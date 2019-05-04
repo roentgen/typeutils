@@ -71,7 +71,7 @@ struct chtype {
 
 
 /* DJB hash: Õ“Ë‚ª’m‚ç‚ê‚Ä‚¢‚é‚Ì‚Å’ˆÓ */
-constexpr uint64_t operator ""_hash(const char* str, std::size_t l)
+constexpr uint64_t operator ""_hash(const char* str, std::size_t)
 {
 	uint64_t h = 5381;
 	chtype< char > c('\0');
@@ -98,7 +98,9 @@ template <typename F, size_t ...Idx>
 constexpr decltype(auto) decompose(std::index_sequence<Idx...>, F&& f) { return std::forward< F >(f)(Idx...); }
 
 #define DECO(str) decompose(std::make_index_sequence< length(str) >(), [](auto... idx) { return std::integer_sequence< char, ((str)[decltype(idx){}])... >{}; })
+
 #endif
+
 }
 
 #endif

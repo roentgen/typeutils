@@ -116,7 +116,7 @@ struct tod_loop_t <N, T, Idx, Rest...> {
   auto は書けるが, コンパイル時計算で型を決定できなければ意味がない)
 */ 
 template < symbol_t N, typename T, size_t ... Pos, size_t ... Idx>
-decltype(auto) lu_foreach_maybe_(std::index_sequence<Idx...>&& s)
+decltype(auto) lu_foreach_maybe_(std::index_sequence<Idx...>&&)
 {
 	using result = typename tod_loop_t< N, T, Idx...>::template result<Pos...>::type;
 	return result{};

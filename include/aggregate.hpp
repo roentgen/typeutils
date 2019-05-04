@@ -245,6 +245,7 @@ struct agg_t : public compo_t< S... >, public map_t< agg_t, S... > {
 	template < alignment_t Align = 1 >
 	constexpr static size_t trv(size_t placement=0)
 	{
+		(void)placement;
 		return sigma_size< Align, 0, S... >::value;
 	}
 
@@ -294,6 +295,7 @@ struct sel_t : public compo_t< S... >, public map_t< sel_t, S... > {
 	template < alignment_t Align = 1 >
 	constexpr static size_t trv(size_t placement=0)
 	{
+		(void)placement;
 		return constexpr_max(sizeof_<S, Align>()...);
 	}
 

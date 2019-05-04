@@ -72,7 +72,7 @@ struct to_types_impl< Idx, Idx, CAR, CDR... > {
 template <size_t Idx, size_t I, typename CAR, typename... CDR >
 struct to_types_impl< Idx, I, CAR, CDR... > {
 	template < typename... AccTs >
-	constexpr static decltype(auto) to(type_list< AccTs ... >&& acc)
+	constexpr static decltype(auto) to(type_list< AccTs ... >&&)
 	{
 		return to_types_impl< Idx, I + 1, CDR...>::template to(type_list< AccTs..., CAR >{});
 	}

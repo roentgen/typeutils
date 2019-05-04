@@ -3,6 +3,7 @@
  * Released under the MIT license.
  */
 #include <stdio.h>
+#include <typeinfo>
 #include <aggregate.hpp>
 #include <string.h>
 
