@@ -40,24 +40,37 @@ constexpr auto elementsof() -> std::enable_if_t< !has_get<T>::value, size_t > { 
 template < typename T >
 constexpr auto elementsof() -> std::enable_if_t< has_get<T>::value, size_t > { return T::elementsof(); }
 
-template < bool compo, typename T, template < typename > class ...Ms > struct map_if_traversable;
+template < bool compo, typename T, template < typename... > class ...Ms > struct map_if_traversable;
 
-template < typename T, template < typename > class ...Ms >
+template < typename T, template < typename... > class ...Ms >
 struct map_if_traversable < false, T, Ms... > {
 	using type = T;
 };
-template < typename T, template < typename > class ...Ms >
+template < typename T, template < typename... > class ...Ms >
 struct map_if_traversable < true, T, Ms... > {
 	using type = typename T::template mapped< Ms... >::type;
 };
 
 
-template < typename Acc, template < typename > class ...Ms > struct apply_impl { using type = Acc; };
-template < typename Acc, template < typename > class M, template < typename > class ...Ms >
+template < typename Acc, template < typename... > class ...Ms > struct apply_impl { using type = Acc; };
+template < typename Acc, template < typename... > class M, template < typename... > class ...Ms >
 struct apply_impl< Acc, M, Ms... > { using type = typename apply_impl< typename M< Acc >::type, Ms...>::type; };
 
-template < template < typename > class F, typename Acc, typename ...Ts > struct filter_impl { using type = Acc; };
-template < template < typename > class F, typename Acc, typename T, typename ...Ts >
+
+template < typename Arg, typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename ...Ms > struct apply2_impl {
+	using type = Arg;
+	static const Acc value = Acc0;
+};
+
+template < typename Arg, typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename M, template < typename Acc_, Acc_, typename... > typename ...Ms >
+struct apply2_impl< Arg, Acc, Acc0, M, Ms... > {
+	using type = Arg;
+	static const Acc value = M<Acc, Acc0, Arg>::value;
+};
+
+
+template < template < typename... > class F, typename Acc, typename ...Ts > struct filter_impl { using type = Acc; };
+template < template < typename... > class F, typename Acc, typename T, typename ...Ts >
 struct filter_impl< F, Acc, T, Ts... > { using type = typename filter_impl< F, typename std::conditional< F<T>::value, typename Acc::template cons< T >, Acc >::type, Ts...>::type; };
 
 template < typename T >
@@ -73,7 +86,7 @@ struct not_empty_composite {
 /* ©ŒÈŒ¾‹y“I‚ÉŒ^‚ğ•Ô‚·•K—v‚ª‚ ‚é‚ª template template parameter ‚É•sŠ®‘SŒ^‚ğ—^‚¦‚é‚Ì‚ª clang5.0 ‚Ü‚Åƒ_ƒ */
 template < template < typename ... > class T, typename ...S >
 struct map_t {
-	template < template < typename > class ...M > struct mapped {
+	template < template < typename... > class ...M > struct mapped {
 		template < template <typename> class F, typename ...Ts >
 		static constexpr auto filter(type_list<Ts...>&&) -> typename filter_impl< F, type_list<>, Ts... >::type;
 		
@@ -418,7 +431,7 @@ struct type_t : public compo_t< S > {
 	static constexpr size_t elementsof() { return 1; };
 	static constexpr alignment_t alignof_()	{ return align;	}
 
-	template < template < typename > class ...M > struct mapped {
+	template < template < typename... > class ...M > struct mapped {
 		template < typename ...Ts >
 		static constexpr auto filter(type_list<Ts...>&&) -> typename filter_impl< not_void, type_list<>, Ts... >::type;
 		using rawtype = decltype(filter(type_list< typename apply_impl< typename map_if_traversable< has_get<S>::value, S, M... >::type, M... >::type >{}));
@@ -442,7 +455,7 @@ struct get {
 	static inline constexpr type* addr(void* ptr) { return reinterpret_cast< type* >(reinterpret_cast<char*>(ptr) + offset); }
 };
 
-template < typename T, template < typename > class...Ms >
+template < typename T, template < typename... > class...Ms >
 struct morph {
 	using mapped = typename T::template mapped< Ms... >::type;
 };
