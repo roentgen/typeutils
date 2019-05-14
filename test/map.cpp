@@ -12,11 +12,13 @@
 struct matrix { float m[16]; };
 
 using namespace typu;
-/* map ‚É“n‚·Ž®‚Í M< typename >::type ‚ÌŒ`‚Å•ÏŠ·Œã‚ÌŒ^‚ð“±‚¯‚ê‚Î‚È‚ñ‚Å‚à‚æ‚¢‚ª, mapto< In >/base_mapper< Out > ƒwƒ‹ƒp‚ðŽg‚¤. */
-template <> struct mapto< int > : public base_mapper< void > {} ;
-template <> struct mapto< char > : public base_mapper< uint8_t > {};
-template <> struct mapto< float[16] > : public base_mapper< matrix > {};
-template <> struct mapto< std::array< float, 16 > > : public base_mapper< matrix > {};
+/* map ‚É“n‚·Ž®‚Í M< typename >::type ‚ÌŒ`‚Å•ÏŠ·Œã‚ÌŒ^‚ð“±‚¯‚ê‚Î‚È‚ñ‚Å‚à‚æ‚¢‚ª, mapto< In >/base_mapper< Out > ƒwƒ‹ƒp‚ðŽg‚¤.
+   M(typename)->type := mapto<typename>:base_mapper<type> 
+ */
+template <> struct typu::mapto< int > : public base_mapper< void > {} ;
+template <> struct typu::mapto< char > : public base_mapper< uint8_t > {};
+template <> struct typu::mapto< float[16] > : public base_mapper< matrix > {};
+template <> struct typu::mapto< std::array< float, 16 > > : public base_mapper< matrix > {};
 
 template < typename In > struct mapto2 { using type = void; };
 

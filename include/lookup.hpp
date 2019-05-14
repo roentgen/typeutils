@@ -25,20 +25,18 @@ struct named_impl<T, false > {
 
 template < typename T >
 struct named_impl<T, true > {
-	using type = T;
-
 	template < alignment_t Align = 1 >
-	constexpr static size_t trv(size_t place = 0) { return type::template trv<Align>(place); }
+	constexpr static size_t trv(size_t place = 0) { return T::template trv<Align>(place); }
 	template < alignment_t Align = 1 >
-	static constexpr size_t placement(size_t place = 0) { return type::template place<Align>(place); }
+	static constexpr size_t placement(size_t place = 0) { return T::template place<Align>(place); }
 	
-	template < alignment_t Align, size_t Acc, size_t... Rest > struct offset { static const size_t value = type::template offset< Align, Acc, Rest...>::value; };
+	template < alignment_t Align, size_t Acc, size_t... Rest > struct offset { static const size_t value = T::template offset< Align, Acc, Rest...>::value; };
 
 	template < alignment_t Align, size_t ... Rest >
-	struct get { using type = typename type::template get< Align, Rest ...>::type; };
+	struct get { using type = typename T::template get< Align, Rest ...>::type; };
 
-	static constexpr size_t elementsof() { return type::elementsof(); };
-	static constexpr alignment_t alignof_() { return typu::alignof_<type>(); };
+	static constexpr size_t elementsof() { return T::elementsof(); };
+	static constexpr alignment_t alignof_() { return typu::alignof_<T>(); };
 };
 
 template < symbol_t N, typename T >
