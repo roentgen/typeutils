@@ -25,6 +25,14 @@ template < typename In > struct mapto2 { using type = void; };
 template < typename In > struct mapto3 { using type = In; };
 template <> struct mapto3< agg_t< int, int > > { using type = agg_t< char, int, char >; };
 
+/* ‚â‚è‚½‚¢‚Ì‚ÍˆÈ‰º‚¾‚ª, extent ‚Ì‰ÁZ‚ğ©•ª‚Å‚â‚è‚½‚­‚È‚¢.
+   extent ‚Ì‰ÁZ‚ğ©“®‚Ås‚¤‚É‚Í In ‚ÌŒ^ agg_t< A, B > ‚Ì A, B ‚ğ“ñ‰ñ©•ª‚Å‘‚­•K—v‚ª‚ ‚è, ‚»‚¿‚ç‚Ì‚Ù‚¤‚ªŠÔˆá‚¢ˆÕ‚¢‚Ì‚Å‚±‚¤‚µ‚Ä‚¨‚­ */
+template < typename In > struct mapto4 { using type = In; };
+template <> struct mapto4< agg_t<std::array< float, 8 >, std::array< float, 8 > > > { using type = agg_t< std::array< float, 16 > >; };
+
+// template < typename A, typename B >
+// constexpr size_t add_extent() { return w<A>::value + w<B>::value; }
+
 const char* demangle(const char* nm)
 {
 #if defined(HAS_CXXABI_H)
@@ -57,7 +65,11 @@ int main()
 	//printf("T4 %s\n", demangle(typeid(typename morph< T4, mapto3 >::mapped).name()));
 	printf("S4 %s\n", demangle(typeid(S4).name()));
 	printf("T4 -> %s\n", demangle(typeid(typename morph< S4, mapto >::mapped).name()));
-	
+
+	using T5 = type_t< agg_t< std::array< float[16], 1 >, agg_t< std::array< float, 8 >, std::array< float, 8 > >, float[16] >, 16 >;
+	printf("T5 -> %s\n", demangle(typeid(typename morph< T5, mapto4 >::mapped).name()));
+
+
 	return 0;
 }
 
