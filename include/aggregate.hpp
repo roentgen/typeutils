@@ -97,6 +97,44 @@ struct map_t {
 	};
 };
 
+template < bool compo, typename T, typename Acc, Acc acc0, template < typename Acc_, Acc_, typename... > typename ...Fun > struct fold_if_traversable;
+template < typename T, typename Acc, Acc acc0, template < typename Acc_, Acc_, typename... > typename ...Fun >
+struct fold_if_traversable < false, T, Acc, acc0, Fun... > {
+	static const Acc value = acc0;
+};
+template < typename T, typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename ...Fun >
+struct fold_if_traversable < true, T, Acc, Acc0, Fun... > {
+	static const Acc value = T::template fold< Acc, Acc0, Fun... >::value;
+};
+
+template < typename Acc_, Acc_ Acc0_, typename ...CDR>
+struct extract_S {
+	template <template < typename Acc, Acc, typename... > typename ...>
+	static constexpr Acc_ eval() { return Acc0_; };
+};
+		
+template < typename Acc_, Acc_ Acc0, typename CAR, typename ...CDR>
+struct extract_S< Acc_, Acc0, CAR, CDR...> {
+	template <template < typename Acc, Acc, typename... > typename ...Fun>
+	static constexpr Acc_ eval() {
+		return apply2_impl< CAR, Acc_,
+							fold_if_traversable< has_get<CAR>::value, CAR, Acc_,
+												 extract_S<Acc_, Acc0, CDR... >::template eval<Fun...>(),
+												 Fun... >::value,
+							Fun... >::value;
+	}
+};
+
+
+/* 収容型 S... に対して fold(acc0, S) を実行する. */
+template < template < typename ... > class T, typename ...S >
+struct fold_t {
+	template < typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename ...Fun >
+	struct fold {
+		static const Acc value = extract_S< Acc, Acc0, S... >::template eval<Fun...>();
+	};
+};
+
 template < typename Out > struct base_mapper { using type = Out; };
 template < typename In > struct mapto { using type = In; };
 
@@ -254,7 +292,7 @@ constexpr auto offset_() -> std::enable_if_t< !has_offset<T, Align, Acc, Pos...>
 /* aggregation
  */
 template < typename ...S >
-struct agg_t : public compo_t< S... >, public map_t< agg_t, S... > {
+struct agg_t : public compo_t< S... >, public map_t< agg_t, S... >, fold_t< agg_t, S... > {
 	template < alignment_t Align = 1 >
 	constexpr static size_t trv(size_t placement=0)
 	{
@@ -439,6 +477,15 @@ struct type_t : public compo_t< S > {
 		using type = type_t< decltype(at_types< 0, rawtype >::from_ts(rawtype{})), Align >;
 	};
 
+
+	template < typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename ...Fun >
+	struct fold {
+		static constexpr Acc eval()
+		{
+			return apply2_impl< S, Acc, fold_if_traversable< has_get<S>::value, S, Acc, Acc0, Fun... >::value, Fun... >::value;
+		}
+	};
+
 };
 
 /* get 公開インターフェイス.
@@ -458,6 +505,11 @@ struct get {
 template < typename T, template < typename... > class...Ms >
 struct morph {
 	using mapped = typename T::template mapped< Ms... >::type;
+};
+
+template < typename T, typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename... Fun >
+struct fold {
+	static const Acc value = T::template fold< Acc, Acc0, Fun... >::eval();
 };
 
 }
