@@ -40,6 +40,12 @@ constexpr auto elementsof() -> std::enable_if_t< !has_get<T>::value, size_t > { 
 template < typename T >
 constexpr auto elementsof() -> std::enable_if_t< has_get<T>::value, size_t > { return T::elementsof(); }
 
+template < typename T >
+constexpr auto countin() -> std::enable_if_t< !has_get<T>::value, size_t > { return std::is_same< T, void >::value ? 0 : 1; }
+
+template < typename T >
+constexpr auto countin() -> std::enable_if_t< has_get<T>::value, size_t > { return T::countin(); }
+
 template < bool compo, typename T, template < typename... > class ...Ms > struct map_if_traversable;
 
 template < typename T, template < typename... > class ...Ms >
@@ -278,8 +284,7 @@ template < typename T, alignment_t A, size_t Acc, size_t... Pos >
 struct has_offset {
 	template < typename U > static auto check(U u) -> decltype(U::template offset< A, Acc, Pos ... >::value, std::true_type{}) { }
 	static std::false_type check(...);
-public:
-	static bool const value = decltype(check(std::declval<T>()))::value;
+	static const bool value = decltype(check(std::declval<T>()))::value;
 };
 
 /* offset を持たないので Pos... の探索は終了 */
@@ -287,6 +292,42 @@ template < alignment_t Align, size_t Acc, typename T, size_t...Pos >
 constexpr auto offset_() -> std::enable_if_t< !has_offset<T, Align, Acc, Pos...>::value, size_t >
 {
 	return Acc + (std::is_empty< T >::value ? 0 : sizeof(T));
+}
+
+template < size_t Acc, typename ...Ts >
+struct count_leaf_t { static const size_t value = Acc; };
+
+template < size_t Acc, typename CAR, typename ...CDR>
+struct count_leaf_t< Acc, CAR, CDR... > {
+	static const size_t value = count_leaf_t< Acc + countin<CAR>(), CDR... >::value;
+};
+
+template < size_t Acc, typename ...Ts >
+constexpr size_t count_leaf_type_list(type_list< Ts ... >&&) { return count_leaf_t< Acc, Ts... >::value; }
+
+template < size_t Acc, typename Cur, typename ...Ts >
+constexpr size_t count_leaf_type_list(type_list< Ts ... >&&) { return count_leaf_t< Acc, Cur, Ts... >::value; }
+
+template < typename T, size_t Acc, size_t... Pos >
+struct has_leaves {
+	template < typename U > static auto check(U u) -> decltype(U::template leaves< Acc, Pos ... >::value, std::true_type{}) {}
+	static std::false_type check(...);
+	static const bool value = decltype(check(std::declval<T>()))::value;
+};
+
+/* leaves 計算のサブ関数:
+   型 T が leaves<Rest...>() を持っていれば Rest... のパターンに従って探索し, なければ終端する. */
+template < size_t Acc, typename T, size_t...Pos >
+constexpr auto leaves_by_index() -> decltype(T::template leaves< Acc, Pos... >::value)
+{
+	return T::template leaves< Acc, Pos... >::value ;
+}
+
+/* leaves を持たないので Pos... の探索は終了 */
+template < size_t Acc, typename T, size_t...Pos >
+constexpr auto leaves_by_index() -> std::enable_if_t< !has_leaves<T, Acc, Pos...>::value, size_t >
+{
+	return Acc + (std::is_empty< T >::value ? 0 : 1);
 }
 
 /* aggregation
@@ -336,8 +377,18 @@ struct agg_t : public compo_t< S... >, public map_t< agg_t, S... >, fold_t< agg_
 		static const size_t value = align< Align, T_ >(offset_< Align, s, T_, Rest... >());
 	};
 
+	/* leaves of Pos... */
+	template < size_t Acc, size_t... Rest > struct leaves { static const size_t value = Acc; };
+
+	template < size_t Acc, size_t Cur, size_t ... Rest >
+	struct leaves< Acc, Cur, Rest...>  {
+		using T_ = typename at_type< Cur, S...>::type;
+		static const size_t value = leaves_by_index< count_leaf_type_list< Acc >(typename to_types< Cur, S... >::types{}), T_, Rest... >();
+	};
+	
 	static constexpr size_t elementsof() { return sizeof...(S); };
 	static constexpr alignment_t alignof_()	{ return constexpr_max(typu::alignof_<S>()...);	}
+	static constexpr size_t countin() { return count_leaf_t<0, S...>::value; }
 };
 
 /* selector */
@@ -435,6 +486,21 @@ struct type_t : public compo_t< S > {
 		return offset_from< Cur, Rest... >();
 	}
 
+	/* ignore the first 0 */
+	template < size_t Cur, size_t ...Rest >
+	constexpr static size_t index_from()
+	{
+		static_assert(Cur == 0, "type_t has to get 0 for the first enclosure");
+		size_t n = sub::template leaves< 0, Rest... >::value;
+		return n ? n - 1 : 0;
+	}
+
+	template < size_t Cur, size_t ...Rest >
+	constexpr static size_t index_from(std::index_sequence<Cur, Rest...>&&)
+	{
+		return index_from< Cur, Rest... >();
+	}
+
 	template < alignment_t A, size_t offs >
 	constexpr static size_t check_aligned()
 	{
@@ -446,6 +512,11 @@ struct type_t : public compo_t< S > {
 	struct offset {
 		/* type_t の内部 offset の計算にしか呼ばれないので上位 placement align は無視 */
 		static const size_t value = align_< align >(offset_< align, Acc, sub, Rest... >());
+	};
+
+	template < size_t Acc, size_t Pos, size_t ... Rest >
+	struct leaves {
+		static const size_t value = leaves_by_index< Acc, sub, Rest... >();
 	};
 
 	/* get インターフェイスのために compo_t の派生としたが, type_t 自身は compo_t を継承しない.
@@ -498,6 +569,7 @@ struct get {
 	using type = typename T::template inner< Pos... >::type;
 	static const size_t size = sizeof_<type, T::align_mode >();
 	static const size_t offset = T::template offset_from<Pos...>();
+	static const size_t index = T::template index_from<Pos...>();
 
 	static inline constexpr type* addr(void* ptr) { return reinterpret_cast< type* >(reinterpret_cast<char*>(ptr) + offset); }
 };
