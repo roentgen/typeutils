@@ -537,7 +537,12 @@ struct type_t : public compo_t< S > {
 
 	template < size_t ...Pos >
 	static constexpr auto inner_from_seq(std::index_sequence< Pos... >&&) -> inner<Pos...>;// {return std::declval< inner<Pos...> >();};
-	
+
+	/* elementsof() は直接収容する型の数を返す. countin() は再帰的に記憶領域を持つ全 leaf を数える. void と(node になる)収容型は数えない.
+	   このため countin() は sel_t では max<countin(S)...> を返す.
+	   elementsof() returns num of types which the type includes directly.
+	   countin() recursively counts all leaves that has its storage up. thus, void and comp_t whose don't have its storage are ignored.
+	*/
 	static constexpr size_t elementsof() { return 1; };
 	static constexpr alignment_t alignof_()	{ return align;	}
 	static constexpr size_t countin() { return S::countin(); }
