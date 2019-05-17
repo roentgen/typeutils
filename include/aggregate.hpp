@@ -239,15 +239,6 @@ constexpr auto sizeof_(size_t) -> std::enable_if_t< !has_placement<T, Align>::va
 {
 	return align<Align, T>(sizeof(T));
 }
-
-/* C++14 ‚Å std::max ‚Í constexpr ”Å‚ª‚Å‚«‚½‚Í‚¸‚¾‚ª, clang-3.5+libc++ ‚Å‚È‚º‚©‚¾‚ß */
-template < typename CAR, typename... CDR >
-constexpr CAR constexpr_max(CAR&& car, CDR&&... cdr){
-	CAR r = car;
-	using s = std::initializer_list<int>;
-	(void)s{ (void(r = r < cdr ? cdr : r),0)... };
-	return r;
-}
 	
 template < alignment_t Align, size_t Acc, typename ...Ts >
 struct sigma_size {
