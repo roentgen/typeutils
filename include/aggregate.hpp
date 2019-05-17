@@ -387,7 +387,7 @@ struct agg_t : public compo_t< S... >, public map_t< agg_t, S... >, fold_t< agg_
 	};
 	
 	static constexpr size_t elementsof() { return sizeof...(S); };
-	static constexpr alignment_t alignof_()	{ return constexpr_max(typu::alignof_<S>()...);	}
+	static constexpr alignment_t alignof_()	{ return std::max(std::initializer_list<size_t>{typu::alignof_<S>()...});	}
 	static constexpr size_t countin() { return count_leaf_t<0, S...>::value; }
 };
 
@@ -398,7 +398,7 @@ struct sel_t : public compo_t< S... >, public map_t< sel_t, S... > {
 	constexpr static size_t trv(size_t placement=0)
 	{
 		(void)placement;
-		return constexpr_max(sizeof_<S, Align>()...);
+		return std::max(std::initializer_list<size_t>{sizeof_<S, Align>()...});
 	}
 
 	template < alignment_t Align = 1 >
@@ -414,8 +414,18 @@ struct sel_t : public compo_t< S... >, public map_t< sel_t, S... > {
 		static const size_t value = offset_< Align, Acc, typename at_type< Pos, S... >::type, Rest... >();
 	};
 
+	/* leaves of Pos... */
+	template < size_t Acc, size_t... Rest > struct leaves { static const size_t value = Acc; };
+
+	template < size_t Acc, size_t Cur, size_t ... Rest >
+	struct leaves< Acc, Cur, Rest...>  {
+		using T_ = typename at_type< Cur, S...>::type;
+		static const size_t value = leaves_by_index< count_leaf_type_list< Acc >(type_list<T_>{}), T_, Rest... >();
+	};
+	
 	static constexpr size_t elementsof() { return sizeof...(S); };
-	static constexpr alignment_t alignof_()	{ return constexpr_max(typu::alignof_<S>()...);	}
+	static constexpr alignment_t alignof_()	{ return std::max(std::initializer_list<size_t>{typu::alignof_<S>()...});	}
+	static constexpr size_t countin() { return std::max(std::initializer_list<size_t>{count_leaf_t<0, S>::value...}); }
 };
 
 	
@@ -539,6 +549,7 @@ struct type_t : public compo_t< S > {
 	
 	static constexpr size_t elementsof() { return 1; };
 	static constexpr alignment_t alignof_()	{ return align;	}
+	static constexpr size_t countin() { return S::countin(); }
 
 	template < template < typename... > class ...M > struct mapped {
 		template < typename ...Ts >
