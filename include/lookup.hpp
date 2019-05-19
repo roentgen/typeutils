@@ -17,10 +17,25 @@ using symbol_t = uint64_t;
 template < typename T, bool Comp >
 struct named_impl ;
 
+template <>
+struct named_impl<void, false > {
+	static constexpr size_t elementsof() { return 0; };
+	static constexpr alignment_t alignof_() { return 0; };
+
+	template < typename X >
+	constexpr static auto rewrap(X&&, type_list<>&&) -> void;
+};
+
 template < typename T >
 struct named_impl<T, false > {
 	static constexpr size_t elementsof() { return 1; };
 	static constexpr alignment_t alignof_() { return typu::alignof_<T>(); };
+
+	template < typename X, typename Y >
+	constexpr static auto rewrap(X&&, type_list<Y>&&) -> Y;
+
+	template < typename X >
+	constexpr static auto rewrap(X&&, type_list<>&&) -> void;
 };
 
 template < typename T >
@@ -37,12 +52,55 @@ struct named_impl<T, true > {
 
 	static constexpr size_t elementsof() { return T::elementsof(); };
 	static constexpr alignment_t alignof_() { return typu::alignof_<T>(); };
+	static constexpr size_t countin() { return T::countin(); }
+
+	/* template <typename ...> typename Compo で Compo を推論ベースで rewrap したかったが, 
+	   できないのでオーバーロードで決定する.
+	*/
+	template < typename ... Ts, typename ... Ss >
+	constexpr static auto rewrap(agg_t<Ts...>&&, type_list<Ss...>&&) -> agg_t<Ss...>;
+
+	template < typename ... Ts, typename ... Ss >
+	constexpr static auto rewrap(sel_t<Ts...>&&, type_list<Ss...>&&) -> sel_t<Ss...>;
+
+	template < typename S0, typename S1, alignment_t Align >
+	constexpr static auto rewrap(type_t<S0, Align>&&, type_list<S1>&&) -> S1;
 };
 
+/* NOTE:
+   named_t が get interface をサポートするかは, 収容型 T の特性によって決定する.
+   named_t 自身が get をサポートするとは限らない.
+   これは get の Pos... に named_t が無視されるようにするため, T の実装にディスパッチするからである. 
+   T=agg_t< type, named_t< 0, X >, type > のとき, X は T::get<1> でアクセスされるべきで, 名前付けによって T::get<1, 0> とはならない.
+   このため, get interface の有無によって named_t が直接の C++ の型であるとき, fold/map の対象にはならなくなる. (収容型 T は get interface をサポートしないため)
+   agg_t< named_t<0, agg_t< X > > >::fold<...> は動くが, agg_t< named_t<0, X > >::fold<...> は動かないということになってしまう.
+   これを避けるため, named_t は get を持たない場合でも fold/mapped を直接実装し, has_fold/has_mapped を使って型チェックを行う必要があった.
+ */
 template < symbol_t N, typename T >
 struct named_t : public named_impl< T, has_get<T>::value > {
 	static const symbol_t name = N;
 	using type = T;
+
+	template < typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename ...Fun >
+	struct fold {
+		static const Acc value = extract_S< Acc, Acc0, T >::template eval<Fun...>();
+	};
+
+	template < template < typename... > class ...M > struct mapped {
+		template < template <typename> class F, typename ...Ts >
+		static constexpr auto filter(type_list<Ts...>&&) -> typename filter_impl< F, type_list<>, Ts... >::type;
+		
+		/* named_t は型の構造上は意味のない notation として振舞うため, map によって除去されないよう rewrap する */
+		using rawtypelist = type_list< typename apply_impl< typename map_raw_if_traversable< has_mapped<T>::value, T, M... >::type, M... >::type >;
+		using newrawtype = decltype(named_impl< T, has_get<T>::value >::rewrap(std::declval<T>(), std::declval<rawtypelist>()));
+		using rawtype = named_t< N, newrawtype >;
+		
+		using typelist = type_list< typename apply_impl< typename map_if_traversable< has_mapped<T>::value, T, M... >::type, M... >::type >;
+		using filtered = decltype(filter< not_empty_composite >(filter< not_void >(rawtypelist{})));
+
+		using newtype = decltype(named_impl< T, has_get<T>::value >::rewrap(std::declval<T>(), std::declval<filtered>()));
+		using type = typename std::conditional< std::is_same<newtype, void>::value, named_t< N, newtype >, void>::type;
+	};
 };
 
 template < typename T >

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <aggregate.hpp>
+#include <lookup.hpp>
 #include <type_traits>
 #include <typeinfo>
 #include <stdint.h>
@@ -42,6 +43,10 @@ int main()
 	using T4 = type_t< agg_t< int, int, type_t< agg_t< sel_t< bool, agg_t<double, double>, bool, bool > >, 8>, float[16], sel_t<int, int, agg_t<char, float>, double>, char >, 0 >;
 	printf("T4 -> %s : %s\n", demangle(typeid(T4).name()), demangle(typeid(get<T4, 0, 4, 2, 1 >::type).name()));
 	printf("T4 -> %s : %zu\n", demangle(typeid(T4).name()), get<T4, 0, 4, 2, 1 >::index);
+
+	using T5 = type_t< agg_t< int, int, named_t< 1, type_t< agg_t< sel_t< bool, agg_t<double, double>, bool, bool > >, 8> >, float[16], sel_t<int, int, agg_t<char, float>, double>, char >, 0 >;
+	printf("T5 -> %s : %s\n", demangle(typeid(T5).name()), demangle(typeid(get<T5, 0, 4, 2, 1 >::type).name()));
+	printf("T5 -> %s : %zu\n", demangle(typeid(T5).name()), get<T5, 0, 4, 2, 1 >::index);
 
 	return 0;
 }

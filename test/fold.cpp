@@ -38,6 +38,15 @@ int main()
 	using T1 = type_t< agg_t< int, int, float[16], char >, 0 >;
 	printf("T1 -> %s : %d float[16]\n", demangle(typeid(T1).name()), fold< T1, int, 0, fold_fun >::value);
 	printf("T1 -> %s : %d int\n", demangle(typeid(T1).name()), fold< T1, int, 0, fold_int_fun >::value);
+
+	using T2 = type_t< agg_t< int, agg_t< int >, agg_t< float[16] >, char >, 0 >;
+	printf("T2 -> %s : %d float[16]\n", demangle(typeid(T2).name()), fold< T2, int, 0, fold_fun >::value);
+	printf("T2 -> %s : %d int\n", demangle(typeid(T2).name()), fold< T2, int, 0, fold_int_fun >::value);
+
+	using T3 = type_t< agg_t< int, named_t< 1, agg_t< int > >, named_t< 2, float[16] >, char >, 0 >;
+	printf("T3 -> %s : %d float[16]\n", demangle(typeid(T3).name()), fold< T3, int, 0, fold_fun >::value);
+	printf("T3 -> %s : %d int\n", demangle(typeid(T3).name()), fold< T3, int, 0, fold_int_fun >::value);
+
 	return 0;
 }
 

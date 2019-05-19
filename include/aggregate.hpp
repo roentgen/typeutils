@@ -33,7 +33,28 @@ struct has_get {
 };
 
 template <> struct has_get< void > { static const bool value = false; };
-	
+
+template < typename T >
+struct has_fold {
+	template <typename Acc, Acc Acc0, typename X>
+	struct fun { static const Acc value = Acc0; };
+	template < typename U > static auto check(U u) -> decltype(U::template fold<int, 0, fun >::value, std::true_type{}) { }
+	static std::false_type check(...);
+	static bool const value = decltype(check(std::declval<T>()))::value;
+};
+
+template <> struct has_fold< void > { static const bool value = false; };
+
+template < typename T >
+struct has_mapped {
+	template <typename Acc>
+	struct fun { using type = Acc; };
+	template < typename U > static auto check(U u) -> decltype(std::declval<typename U::template mapped< fun >::type >(), std::true_type{}) { }
+	static std::false_type check(...);
+	static bool const value = decltype(check(std::declval<T>()))::value;
+};
+template <> struct has_mapped< void > { static const bool value = false; };
+
 template < typename T >
 constexpr auto elementsof() -> std::enable_if_t< !has_get<T>::value, size_t > { return 0; }
 
@@ -57,6 +78,16 @@ struct map_if_traversable < true, T, Ms... > {
 	using type = typename T::template mapped< Ms... >::type;
 };
 
+template < bool compo, typename T, template < typename... > class ...Ms > struct map_raw_if_traversable;
+
+template < typename T, template < typename... > class ...Ms >
+struct map_raw_if_traversable < false, T, Ms... > {
+	using type = T;
+};
+template < typename T, template < typename... > class ...Ms >
+struct map_raw_if_traversable < true, T, Ms... > {
+	using type = typename T::template mapped< Ms... >::rawtype;
+};
 
 template < typename Acc, template < typename... > class ...Ms > struct apply_impl { using type = Acc; };
 template < typename Acc, template < typename... > class M, template < typename... > class ...Ms >
@@ -95,11 +126,13 @@ struct map_t {
 	template < template < typename... > class ...M > struct mapped {
 		template < template <typename> class F, typename ...Ts >
 		static constexpr auto filter(type_list<Ts...>&&) -> typename filter_impl< F, type_list<>, Ts... >::type;
-		
-		using rawtype = decltype(
-			filter< not_empty_composite >(
-				filter< not_void >(type_list< typename apply_impl< typename map_if_traversable< has_get<S>::value, S, M... >::type, M... >::type ... >{})));
-		using type = typename rawtype::template rewrap_t< T >;
+
+		using rawtypelist = type_list< typename apply_impl< typename map_raw_if_traversable< has_mapped<S>::value, S, M... >::type, M... >::type ... >;
+		using rawtype = typename rawtypelist::template rewrap_t< T >;
+
+		using typelist = type_list< typename apply_impl< typename map_if_traversable< has_mapped<S>::value, S, M... >::type, M... >::type ... >;
+		using filtered = decltype(filter< not_empty_composite >(filter< not_void >(typelist{})));
+		using type = typename filtered::template rewrap_t< T >;
 	};
 };
 
@@ -124,7 +157,7 @@ struct extract_S< Acc_, Acc0, CAR, CDR...> {
 	template <template < typename Acc, Acc, typename... > typename ...Fun>
 	static constexpr Acc_ eval() {
 		return apply2_impl< CAR, Acc_,
-							fold_if_traversable< has_get<CAR>::value, CAR, Acc_,
+							fold_if_traversable< has_fold<CAR>::value, CAR, Acc_,
 												 extract_S<Acc_, Acc0, CDR... >::template eval<Fun...>(),
 												 Fun... >::value,
 							Fun... >::value;
@@ -550,21 +583,94 @@ struct type_t : public compo_t< S > {
 	template < template < typename... > class ...M > struct mapped {
 		template < typename ...Ts >
 		static constexpr auto filter(type_list<Ts...>&&) -> typename filter_impl< not_void, type_list<>, Ts... >::type;
-		using rawtype = decltype(filter(type_list< typename apply_impl< typename map_if_traversable< has_get<S>::value, S, M... >::type, M... >::type >{}));
+		
+		using rawtypelist = type_list< typename apply_impl< typename map_raw_if_traversable< has_mapped<S>::value, S, M... >::type, M... >::type >;
+		using rawtype = type_t< typename at_types< 0, rawtypelist >::type, Align >;
 
-		using type = type_t< decltype(at_types< 0, rawtype >::from_ts(rawtype{})), Align >;
+		using typelist = type_list< typename apply_impl< typename map_if_traversable< has_mapped<S>::value, S, M... >::type, M... >::type >;
+		using type = type_t< typename at_types< 0, decltype(filter(typelist{})) >::type, Align >;
 	};
-
 
 	template < typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename ...Fun >
 	struct fold {
 		static constexpr Acc eval()
 		{
-			return apply2_impl< S, Acc, fold_if_traversable< has_get<S>::value, S, Acc, Acc0, Fun... >::value, Fun... >::value;
+			return apply2_impl< S, Acc, fold_if_traversable< has_fold<S>::value, S, Acc, Acc0, Fun... >::value, Fun... >::value;
 		}
 	};
-
 };
+
+
+template < alignment_t Align>
+struct type_t<void, Align> : public compo_t< void > {
+	using sub = void;
+	static const alignment_t align_mode = Align; /* maybe 0 */
+	static const size_t align = align_mode;
+
+	template < alignment_t EA = Align >
+	constexpr static size_t trv(size_t place = 0) { return Align; }
+
+	template < alignment_t EA = Align >
+	constexpr static size_t placement(size_t place = 0) { return Align; }
+
+	/* ignore the first 0 */
+	template < size_t Cur, size_t ...Rest >
+	constexpr static size_t offset_from()
+	{
+		static_assert(Cur == 0, "type_t has to get 0 for the first enclosure");
+		return 0;
+	}
+
+	template < size_t Cur, size_t ...Rest >
+	constexpr static size_t offset_from(std::index_sequence<Cur, Rest...>&&) { return offset_from< Cur, Rest... >(); }
+
+	/* ignore the first 0 */
+	template < size_t Cur, size_t ...Rest >
+	constexpr static size_t index_from()
+	{
+		static_assert(Cur == 0, "type_t has to get 0 for the first enclosure");
+		return 0;
+	}
+
+	template < size_t Cur, size_t ...Rest >
+	constexpr static size_t index_from(std::index_sequence<Cur, Rest...>&&) { return index_from< Cur, Rest... >(); }
+
+	template < alignment_t A, size_t offs >
+	constexpr static size_t check_aligned() { return offs; }
+
+	template < alignment_t A, size_t Acc, size_t Pos, size_t ... Rest >
+	struct offset { static const size_t value = 0; };
+
+	template < size_t Acc, size_t Pos, size_t ... Rest >
+	struct leaves { static const size_t value = 0; };
+
+	template < size_t ... Pos > struct inner { using type = sub; };
+
+	template < size_t ...Pos >
+	static constexpr auto inner_from_seq(std::index_sequence< Pos... >&&) -> inner<Pos...>;
+
+	static constexpr size_t elementsof() { return 0; };
+	static constexpr alignment_t alignof_()	{ return align;	}
+	static constexpr size_t countin() { return 0; }
+
+	/* void でも map/fold は動かす */
+	template < template < typename... > class ...M > struct mapped {
+		template < typename ...Ts >
+		static constexpr auto filter(type_list<Ts...>&&) -> typename filter_impl< not_void, type_list<>, Ts... >::type;
+
+		using rawtypelist = type_list< typename apply_impl< typename map_raw_if_traversable< has_mapped<sub>::value, sub, M... >::type, M... >::type >;
+		using rawtype = type_t< typename at_types< 0, rawtypelist >::type, Align >;
+
+		using typelist = type_list< typename apply_impl< typename map_if_traversable< has_mapped<sub>::value, sub, M... >::type, M... >::type >;
+		using type = type_t< typename at_types< 0, decltype(filter(typelist{})) >::type, Align >;
+	};
+
+	template < typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename ...Fun >
+	struct fold {
+		static constexpr Acc eval() { return apply2_impl< sub, Acc, fold_if_traversable< has_fold<sub>::value, sub, Acc, Acc0, Fun... >::value, Fun... >::value; }
+	};
+};
+
 
 /* get 公開インターフェイス.
    これを使うには, type_t が comp_t 派生型を直接所有していること.
@@ -584,6 +690,7 @@ struct get {
 template < typename T, template < typename... > class...Ms >
 struct morph {
 	using mapped = typename T::template mapped< Ms... >::type;
+	using mapped_raw = typename T::template mapped< Ms... >::rawtype;
 };
 
 template < typename T, typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename... Fun >

@@ -69,7 +69,12 @@ int main()
 	using T5 = type_t< agg_t< std::array< float[16], 1 >, agg_t< std::array< float, 8 >, std::array< float, 8 > >, float[16] >, 16 >;
 	printf("T5 -> %s\n", demangle(typeid(typename morph< T5, mapto4 >::mapped).name()));
 
-
+	using T6 = type_t< agg_t< int, named_t< "matrix"_hash, type_t< agg_t< int, named_t< 0, int > >, 16 > >, char >, 0 >;
+	printf("T6 %s\n", demangle(typeid(T6).name()));
+	printf("T6 -> %s\n", demangle(typeid(typename morph< T6, mapto >::mapped).name()));
+	printf("T6 -> %s (raw)\n", demangle(typeid(typename morph< T6, mapto >::mapped_raw).name()));
+	printf("T6 -> %s (raw)\n", demangle(typeid(typename type_t< named_t< 1, agg_t< bool, int, named_t< 0, int > > >, 16>::template mapped< mapto >::rawtypelist).name()));
+	//printf("T6 -> %s (raw)\n", demangle(typeid(typename morph< named_t< 1, agg_t< bool, int, named_t< 0, int > > >, mapto >::mapped_raw).name()));
 	return 0;
 }
 
