@@ -22,8 +22,10 @@ struct type_list {
 	template < typename T >	using cons = type_list< Ts..., T >;
 };
 
+template <typename ...Ts> constexpr size_t type_list_size(type_list<Ts...>&&) { return sizeof...(Ts); }
+	
 template <size_t Idx, size_t I, typename... Ts>
-struct at_type_impl;
+struct at_type_impl { using type = void; };
 
 template <size_t Idx, size_t I, typename CAR, typename... CDR>
 struct at_type_impl< Idx, I, CAR, CDR... > {
@@ -45,18 +47,21 @@ struct at_type {
 };
 
 template < size_t Idx, typename Ts >
-struct at_types
-{
+struct at_types {
+	static_assert(type_list_size(Ts{}) > Idx, "Idx out of range");
+	
 	template < typename ... As > 
 	constexpr static decltype(auto) from_ts(type_list< As... >&&)
-	{
-		static_assert(sizeof...(As) > Idx, "Idx out of range");
-		return typename at_type< Idx, As... >::type{};
-	}
+		-> typename at_type< Idx, As... >::type;
 
 	using type = decltype(from_ts(std::declval< Ts >()));
 };
 
+template < size_t Idx >
+struct at_types< Idx, type_list<> > {
+	using type = void;
+};
+	
 template <size_t Idx, size_t I, typename... Ts>
 struct to_types_impl;
 

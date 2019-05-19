@@ -22,5 +22,7 @@ int main()
 	printf("%d\n", std::is_same< typename at_types< 0, Sub3 >::type, char >::value);
 	printf("%d\n", std::is_same< typename at_types< 1, Sub3 >::type, int >::value);
 	printf("%d\n", std::is_same< typename at_types< 2, Sub3 >::type, float >::value);
+	printf("%d\n", std::is_same< typename at_types< 0, type_list<void> >::type, void >::value);
+	//printf("%d\n", std::is_same< typename at_types< 0, type_list<> >::type, void >::value);
 	return 0;
 }
