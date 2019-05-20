@@ -43,7 +43,7 @@ struct named_impl<T, true > {
 	template < alignment_t Align = 1 >
 	constexpr static size_t trv(size_t place = 0) { return T::template trv<Align>(place); }
 	template < alignment_t Align = 1 >
-	static constexpr size_t placement(size_t place = 0) { return T::template place<Align>(place); }
+	static constexpr size_t placement(size_t place = 0) { return T::template placement<Align>(place); }
 	
 	template < alignment_t Align, size_t Acc, size_t... Rest > struct offset { static const size_t value = T::template offset< Align, Acc, Rest...>::value; };
 

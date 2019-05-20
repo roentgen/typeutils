@@ -179,10 +179,12 @@ template < typename In > struct mapto { using type = In; };
 
 template < typename T >
 struct has_alignof {
-	template < typename U > static auto check(U u) -> decltype(U::alignof_(), std::true_type{});
+	template < typename U > static constexpr auto check(U u) -> decltype(U::alignof_(), std::true_type{});
 	static std::false_type check(...);
 	static bool const value = decltype(check(std::declval<T>()))::value;
 };
+
+template <> struct has_alignof<void> { static const bool value = false; };
 
 template < typename T >
 constexpr auto alignof_() -> std::enable_if_t< has_alignof< T >::value, alignment_t >
@@ -191,10 +193,14 @@ constexpr auto alignof_() -> std::enable_if_t< has_alignof< T >::value, alignmen
 }
 
 template < typename T >
-constexpr auto alignof_() -> std::enable_if_t< !has_alignof< T >::value, alignment_t >
+constexpr auto alignof_() -> std::enable_if_t< !std::is_same<void, T>::value && !has_alignof< T >::value, alignment_t >
 {
 	return alignof(T);
 }
+
+template < typename T >
+constexpr auto alignof_() -> std::enable_if_t< std::is_same<void, T>::value && !has_alignof< T >::value, alignment_t > { return 0; }
+
 
 template < typename T>
 struct has_align {

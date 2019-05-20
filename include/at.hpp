@@ -51,7 +51,7 @@ struct at_types {
 	static_assert(type_list_size(Ts{}) > Idx, "Idx out of range");
 	
 	template < typename ... As > 
-	constexpr static decltype(auto) from_ts(type_list< As... >&&)
+	constexpr static auto from_ts(type_list< As... >&&)
 		-> typename at_type< Idx, As... >::type;
 
 	using type = decltype(from_ts(std::declval< Ts >()));
