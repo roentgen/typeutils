@@ -12,6 +12,11 @@
 struct matrix { float m[16]; };
 struct vec { float v[4]; };
 
+struct non_trivial_t {
+	int x;
+	non_trivial_t() = delete;
+};
+
 using namespace typu;
 /* map ‚É“n‚·®‚Í M< typename >::type ‚ÌŒ`‚Å•ÏŠ·Œã‚ÌŒ^‚ğ“±‚¯‚ê‚Î‚È‚ñ‚Å‚à‚æ‚¢‚ª, mapto< In >/base_mapper< Out > ƒwƒ‹ƒp‚ğg‚¤.
    M(typename)->type := mapto<typename>:base_mapper<type> 
@@ -21,6 +26,7 @@ template <> struct typu::mapto< char > : public base_mapper< uint8_t > {};
 template <> struct typu::mapto< float[16] > : public base_mapper< matrix > {};
 template <> struct typu::mapto< float[4] > : public base_mapper< vec > {};
 template <> struct typu::mapto< std::array< float, 16 > > : public base_mapper< matrix > {};
+template <> struct typu::mapto< non_trivial_t > : public base_mapper< non_trivial_t > {};
 
 template < typename In > struct mapto2 { using type = void; };
 
@@ -31,6 +37,7 @@ template <> struct mapto3< agg_t< int, int > > { using type = agg_t< char, int, 
    extent ‚Ì‰ÁZ‚ğ©“®‚Ås‚¤‚É‚Í In ‚ÌŒ^ agg_t< A, B > ‚Ì A, B ‚ğ“ñ‰ñ©•ª‚Å‘‚­•K—v‚ª‚ ‚è, ‚»‚¿‚ç‚Ì‚Ù‚¤‚ªŠÔˆá‚¢ˆÕ‚¢‚Ì‚Å‚±‚¤‚µ‚Ä‚¨‚­ */
 template < typename In > struct mapto4 { using type = In; };
 template <> struct mapto4< agg_t<std::array< float, 8 >, std::array< float, 8 > > > { using type = agg_t< std::array< float, 16 > >; };
+
 
 // template < typename A, typename B >
 // constexpr size_t add_extent() { return w<A>::value + w<B>::value; }
@@ -80,6 +87,9 @@ int main()
 
 	using T7 = type_t<agg_t< float[16], float[4], float[16] >, 0>;
 	printf("T7 -> %s\n", demangle(typeid(typename morph< T7, mapto >::mapped).name()));
+
+	using T8 = type_t<agg_t< float[16], float[4], float[16], non_trivial_t >, 0>;
+	printf("T8 -> %s\n", demangle(typeid(typename morph< T8, mapto >::mapped).name()));
 	return 0;
 }
 

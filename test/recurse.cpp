@@ -7,6 +7,11 @@
 #include <aggregate.hpp>
 #include <string.h>
 
+struct non_trivial_t {
+	int x;
+	non_trivial_t() = delete;
+};
+
 int main()
 {
 	using namespace typu;
@@ -248,8 +253,11 @@ int main()
 	//printf("align (align:0): %zu (4)\n", Aligned_0_1::alignof_()); // debug
 	printf("offset<0,5>(align:0): %zu (24)\n", get< Aligned_0_1, 0, 5>::offset);
 	printf("offset<0,6>(align:0): %zu (25)\n", get< Aligned_0_1, 0, 6>::offset);
-
-	
 	//printf("align  (align:0): %zu (20) padded\n", get< Aligned_0_1, 0, 4>::type::trv<0>(20)); // debug
+
+	using NonTrivial = type_t< agg_t< char, type_t< agg_t<non_trivial_t>, 2>, double, char, char >, 0>;
+	printf("offset<0,0,0>(align:0): %zu (2)\n", get< NonTrivial, 0, 1, 0, 0 >::offset);
+	printf("offset<0,0,0>(align:0): %zu (8)\n", get< NonTrivial, 0, 2 >::offset);
+
 	return 0;
 }
