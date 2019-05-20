@@ -10,6 +10,7 @@
 #endif
 
 struct matrix { float m[16]; };
+struct vec { float v[4]; };
 
 using namespace typu;
 /* map ‚É“n‚·Ž®‚Í M< typename >::type ‚ÌŒ`‚Å•ÏŠ·Œã‚ÌŒ^‚ð“±‚¯‚ê‚Î‚È‚ñ‚Å‚à‚æ‚¢‚ª, mapto< In >/base_mapper< Out > ƒwƒ‹ƒp‚ðŽg‚¤.
@@ -18,6 +19,7 @@ using namespace typu;
 template <> struct typu::mapto< int > : public base_mapper< void > {} ;
 template <> struct typu::mapto< char > : public base_mapper< uint8_t > {};
 template <> struct typu::mapto< float[16] > : public base_mapper< matrix > {};
+template <> struct typu::mapto< float[4] > : public base_mapper< vec > {};
 template <> struct typu::mapto< std::array< float, 16 > > : public base_mapper< matrix > {};
 
 template < typename In > struct mapto2 { using type = void; };
@@ -75,6 +77,9 @@ int main()
 	printf("T6 -> %s (raw)\n", demangle(typeid(typename morph< T6, mapto >::mapped_raw).name()));
 	printf("T6 -> %s (raw)\n", demangle(typeid(typename type_t< named_t< 1, agg_t< bool, int, named_t< 0, int > > >, 16>::template mapped< mapto >::rawtypelist).name()));
 	//printf("T6 -> %s (raw)\n", demangle(typeid(typename morph< named_t< 1, agg_t< bool, int, named_t< 0, int > > >, mapto >::mapped_raw).name()));
+
+	using T7 = type_t<agg_t< float[16], float[4], float[16] >, 0>;
+	printf("T7 -> %s\n", demangle(typeid(typename morph< T7, mapto >::mapped).name()));
 	return 0;
 }
 

@@ -7,6 +7,11 @@
 #include <typeinfo>
 #include <at.hpp>
 
+struct non_trivial_t {
+	int x;
+	non_trivial_t() = delete;
+};
+
 int main()
 {
 	using namespace typu;
@@ -23,6 +28,10 @@ int main()
 	printf("%d\n", std::is_same< typename at_types< 1, Sub3 >::type, int >::value);
 	printf("%d\n", std::is_same< typename at_types< 2, Sub3 >::type, float >::value);
 	printf("%d\n", std::is_same< typename at_types< 0, type_list<void> >::type, void >::value);
+
+	/* FIXME: to_types<X, T...> Ç≈ sizeof...(T) == X ÇÃÇ∆Ç´ÉGÉâÅ[ */
+	using Sub4 = to_types<1, non_trivial_t, int>::types;
+	printf("%d\n", std::is_same< typename at_types< 0, Sub4 >::type, non_trivial_t >::value);
 	//printf("%d\n", std::is_same< typename at_types< 0, type_list<> >::type, void >::value);
 	return 0;
 }
