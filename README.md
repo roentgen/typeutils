@@ -67,9 +67,10 @@ using T1 = type_t< agg_t< int, int, agg_t< bool, bool, bool >, float[16], agg_t<
 size_t idx = get<T2, 0, 4, 2 >::index; /* float's index = 8 */
 ```
 
-### map<Fun...>
+### morph<T, Fun...>
 
-map は型の変換を行う. 以下の例では float[16], float[4] を対応する代数型に変換する.
+morph は型 `T` の変換を行う.
+以下の例では `float[16]`, `float[4]` を対応する代数型に変換する. `mapped` は変換後の型になる.
 
 ```c++
 using namespace typu;
@@ -80,7 +81,7 @@ using T = type_t< agg_t< float[16], float[4], float[16] >, 16 >;
 using S = typename morph< T, mapto >::mapped; /* type_t< agg_t< matrix44_t, vector4_t, matrix44_t >, 16 > */
 ```
 
-`fun(int)->void` を map して型を削除することもできる.　削除する前の rawtype を得ることもできる.  
+`fun(int)->void` を map して型を削除することもできる.　削除する前の `mapped_raw` を得ることもできる.  
 この結果, 記憶領域を持たなくなった型は削除される.
 
 ```c++
