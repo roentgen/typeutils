@@ -17,10 +17,10 @@ template <> struct mapto< double > : public base_mapper< float >{};
 using S = typename morph< T, mapto >::mapped;
 ```
 
-The computable metatype: builidng and manipurating types like as modifing struct/union.
+A computable metatype: builidng and manipurating types like modifing struct/union.
 
-GPU and other dedicate devices require data and its layout.
-This helps generating types from a type to prodce raw-data and its descriptors which dedicate device requires in compile-time.
+GPU and other dedicated devices require data and its layout.
+This helps generating types which dedicate device requires raw-data and its descriptors from a CPU-friendly type in compile-time.
 
 * non-struct: compositing types provide meta-programmable type
 * alignment-safe: type_t(s) are compositable with strong/week alignment requirements
@@ -32,9 +32,9 @@ clang5.0 or later. or MSVC2017.
 
 ### type_t<T, Align>
 
-Contains a single type, and provide requirement of alignment. Aling=0 means a natural alignment.  
+Contains a single type, and provide requirement of alignment. Align=0 means a natural alignment.  
 `type_t` will often contains `agg_t` or `sel_t`.
-Nesting `type_t` will be provide more strong/week alignment than container. This may put a padding before/after of containee.
+Nesting `type_t` provides more strong/week alignment than container. This may put a padding before/after of containee.
 
 ### Aggregation Type agg_t<Ts...>/sel_t<Ts...>
 
@@ -46,19 +46,19 @@ For containee, no dedicate restructions but it should not be `void`.
 ### Notation named_t<Name, T>
 
 Gives a symbol, `Name`, as single containee `T`. The symbol will be used in `lookup`.
-This does not have its index since it's not aggregation will do not effect for calclation of `offset` but be perticipant for map/fold's.
+It will have no effect for calculation of `offset` that a type does not have its index since it's not aggregation type, but will be a participant for map/fold's.
 
 ### get<T, Index...>
 
-Accessing member-type by indices.  
-Follow example shows `type` will be `float` type indexed by `<0, 4>`. the first `0` means the directly containee `agg_t`.
+Accesses member-type by indices.  
+In the following example, `type` will be `float` type indexed by `<0, 4>`. the first `0` means the directly containee `agg_t`.
 
 ```c++
 using T = type_t< agg_t< int, int, int, int, float, double >, 0 >;
 using S = typename get<T, 0, 4 >::type; /* float */
 ```
 
-Nesting types increases a dimension of indices.  
+Nesting types requires higher dimension indices.  
 Also `get` has `offset`, `addr` from effective-address and leaf-index, `index` for the indexed type.
 
 ```c++
@@ -77,7 +77,7 @@ size_t idx = get<T2, 0, 4, 2 >::index; /* float's index = 8 */
 ### morph<T, Fun...>
 
 Gives the new type as map.
-Follow example shows converting from `float[16]` and `float[4]` to correspond algebra type, matrix and vector. `mapped` will be mapped type.  
+In the following example, `morph` will convert `float[16]` and `float[4]` to correspond algebra type, matrix and vector. `mapped` will be mapped type.  
 Function's argument will be matched node types like as `agg_t`, `sel_t` or `type_t`.
 
 ```c++
@@ -89,10 +89,9 @@ using T = type_t< agg_t< float[16], float[4], float[16] >, 16 >;
 using S = typename morph< T, mapto >::mapped; /* type_t< agg_t< matrix44_t, vector4_t, matrix44_t >, 16 > */
 ```
 
-Also `morph` is able to remove types mapped as `void`. Following example let `int` is `void` via a function `fun(int)->void`. A function is expressed in template's full specialization.
+Also `morph` is able to remove types by mapping them `void`. In the following example, it `morph`s `int` to `void` via a function `fun(int)->void`. A function is expressed in template's full specialization.
 Then `void` and types has no its storage will be sanitized.  
-If you need a type's un-sanitized then `mapped_raw` shows a full type.
-
+If you need a full type you can access it with `mapped_raw`.
 
 ```c++
 using namespace typu;
@@ -106,8 +105,8 @@ using S = typename morph< T, mapto >::mapped; /* type_t< char, 0 > */
 
 (TBD)
 
-Applies `Fun...` to `T`'s all containee and gives a value typed as `Acc`.
-A function's argument will be matched node types like as `agg_t`, `sel_t` or `type_t` morph as well.  
+Applies `Fun...` to `T`'s all containees and gives a value typed as `Acc`.
+A function's argument will be matched node types like `agg_t`, `sel_t` or `type_t`, morph as well.  
 Next example shows counting `int` of `T`.  
 
 ```c++
@@ -121,7 +120,7 @@ using T = type_t< agg_t< int, agg_t< int >, agg_t< float[16] >, char >, 0 >;
 auto n = fold< T, int, 0, fold_fun >::value; // 2
 ```
 
-Functions will be applied to `sel_t`'s all containee.
+Functions will be applied to `sel_t`'s all containees.
 
 
 ## lookup.hpp
@@ -134,7 +133,7 @@ static_assert(std::is_same< double, typename lu<T, 0xdeadbeef>::type >::value, "
 printf("offset: %zu\n", lu<T, 0xdeadbeef>::offset);
 ```
 
-`named_t<Name, T>` names an unique symbol, `Name`, to `T`.
+`named_t<Name, T>` names `T` as unique symbol, `Name`.
 Looking the type up via `lu<T, Symbol>` is done at compile-time as well `get` or other functions do.
 
 
@@ -152,4 +151,4 @@ static_assert(std::is_same< at_type< 2, char, short, int, long >::type, int >::v
 static_assert(std::is_same< to_types< 2, char, short, int, long >::type, std::tuple< char, short > >::value, "sorry"); 
 ```
 
-`to_types<N, T...>` has variations one, `to_types<>::type`, is using `std::tuple` and one, `to_types<>::types` is using simple `type_list<...>`.
+`to_types<N, T...>` has two variations. One is `to_types<>::type`, which uses `std::tuple`. Another is `to_types<>::types` which uses simple `type_list<...>`.
