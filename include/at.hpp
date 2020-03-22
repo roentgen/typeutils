@@ -23,7 +23,7 @@ struct type_list {
 
 	template < typename ...C > constexpr static auto concat(type_list< C... >&&) -> type_list< Ts..., C... >;
 };
-
+	
 template <typename ...Ts> constexpr size_t type_list_size(type_list<Ts...>&&) { return sizeof...(Ts); }
 	
 template <size_t Idx, size_t I, typename... Ts>
@@ -108,6 +108,22 @@ struct to_type {
 
 };
 */
+
+template < typename T, typename F, size_t ...Idx >
+constexpr std::array< typename std::result_of< F(typename at_types< 0, T >::type) >::type, sizeof...(Idx) >
+map_apply_impl(F&& f, std::index_sequence< Idx... >&&)
+{
+	return {{f(typename at_types< Idx, T >::type{})...}};
 }
+	
+template < typename F, typename ...Ts >
+constexpr auto map_apply(type_list< Ts... >&& t, F&& fun)
+{
+	auto idx = std::make_index_sequence< sizeof...(Ts) >();
+	return map_apply_impl< type_list<Ts...> >(std::forward<F>(fun), std::move(idx));
+}
+
+}
+
 
 #endif

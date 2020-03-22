@@ -729,6 +729,9 @@ struct morph {
 	using mapped_raw = typename T::template mapped< Ms... >::rawtype;
 };
 
+template < typename T, template < typename... > class...Ms >
+using mapped_t = typename morph<T, Ms...>::mapped;
+
 template < typename T, typename Acc, Acc Acc0, template < typename Acc_, Acc_, typename... > typename... Fun >
 struct fold {
 	static const Acc value = T::template fold< Acc, Acc0, Fun... >::eval();
