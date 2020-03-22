@@ -36,6 +36,10 @@ add_executable(recurse test/recurse.cpp include/aggregate.hpp)
 add_executable(at test/at.cpp include/at.hpp)
 add_executable(lu test/lu.cpp include/lookup.hpp include/aggregate.hpp)
 add_executable(strings test/strings.cpp include/str.hpp)
+add_executable(flatten test/flatten.cpp include/aggregate.hpp)
 add_executable(map test/map.cpp include/lookup.hpp include/aggregate.hpp include/str.hpp)
 add_executable(fold test/fold.cpp include/aggregate.hpp)
 add_executable(index test/index.cpp include/aggregate.hpp)
+
+add_executable(tet test/test.cpp include/lookup.hpp include/aggregate.hpp include/str.hpp)
+

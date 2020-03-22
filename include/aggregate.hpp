@@ -15,6 +15,39 @@ extern std::nullptr_t enabler;
 
 using alignment_t = size_t;
 
+template < typename T >
+struct has_get {
+	template < typename U > static auto check(U u) -> decltype(std::declval<typename U::template get<0>::type>(), std::true_type{}) { }
+	static std::false_type check(...);
+	static bool const value = decltype(check(std::declval<T>()))::value;
+};
+template <> struct has_get< void > { static const bool value = false; };
+
+/*
+  enflat(Acc, [CAR|CDR]) ->
+     enflat(Acc ++ enflat_if_traversable(Acc, CAR), CDR).
+
+  enflat_if_traversable(Acc, T) when has_get(T) ->
+     T:flatten(T, Acc);
+	 Acc.
+
+  T:flatten(Acc) -> enflat(Acc, S)
+*/
+
+template < bool compo, typename Acc, typename T > struct enflat_if_traversable;
+template < typename Acc, typename T >
+struct enflat_if_traversable < false, Acc, T > { using type = type_list<T>; };
+template < typename Acc, typename T >
+struct enflat_if_traversable < true, Acc, T > {	using type = typename T::flatten::template type< type_list<> >;};
+
+template < typename Acc, typename ...Ts >
+struct enflat { using type = Acc; };
+template < typename Acc, typename CAR, typename ...CDR>
+struct enflat< Acc, CAR, CDR... > {
+	using T = decltype(Acc::concat(std::declval< typename enflat_if_traversable< has_get< CAR >::value, Acc, CAR >::type >()));
+	using type = typename enflat< T, CDR... >::type;
+};
+
 template < typename ... S > 
 struct compo_t  {
 	template < alignment_t Align, size_t... Rest > struct get { using type = void; };
@@ -23,16 +56,12 @@ struct compo_t  {
 	struct get< Align, Pos, Rest...>  {
 		using type = typename at_type< Pos, S... >::type::template get< Align, Rest ... >::type;
 	};
-};
 
-template < typename T >
-struct has_get {
-	template < typename U > static auto check(U u) -> decltype(std::declval<typename U::template get<0>::type>(), std::true_type{}) { }
-	static std::false_type check(...);
-	static bool const value = decltype(check(std::declval<T>()))::value;
+	struct flatten {
+		template < typename Acc >
+		using type = typename enflat< Acc, S... >::type;
+	};
 };
-
-template <> struct has_get< void > { static const bool value = false; };
 
 template < typename T >
 struct has_fold {
@@ -301,6 +330,7 @@ constexpr size_t sigma_type_list(type_list< Ts ... >&&)
 {
 	return sigma_size< Align, Acc, Cur, Ts... >::value;
 }
+
 
 /* offset 計算のサブ関数:
    型 T が offset<Rest...>() を持っていれば Rest... のパターンに従って探索し, なければ終端する. */
@@ -703,6 +733,13 @@ template < typename T, typename Acc, Acc Acc0, template < typename Acc_, Acc_, t
 struct fold {
 	static const Acc value = T::template fold< Acc, Acc0, Fun... >::eval();
 };
+
+template < typename T >
+struct flatten {
+	using type = typename T::flatten::template type< type_list<> >;
+};
+
+template < typename T > using flatten_t = typename flatten< T >::type;
 
 }
 #endif

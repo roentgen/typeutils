@@ -20,6 +20,8 @@ struct type_list {
 	using rewrap_t = Compo< Ts ... >;
 
 	template < typename T >	using cons = type_list< Ts..., T >;
+
+	template < typename ...C > constexpr static auto concat(type_list< C... >&&) -> type_list< Ts..., C... >;
 };
 
 template <typename ...Ts> constexpr size_t type_list_size(type_list<Ts...>&&) { return sizeof...(Ts); }
